@@ -1,3 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --coffee-brown: #8B4513;
+  --cream: #F5F5DC;
+  --soft-green: #90EE90;
+  --bg: var(--cream);
+  --fg: #3b2f2f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #efeae5;
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+/* Simple helpers for the Full Cup styling */
+.fullcup-hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.fullcup-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.5));
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 8px 24px rgba(139,69,19,0.12);
+  border: 1px solid rgba(139,69,19,0.08);
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+}
+.fullcup-title {
+  color: var(--coffee-brown);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.fullcup-subtitle {
+  color: #5b4638;
+  margin-top: 0.5rem;
+}
+.fullcup-accent {
+  color: var(--soft-green);
+}
 @import "tailwindcss";
 
 :root {
