@@ -9,7 +9,7 @@
  *    date_added, last_updated, created_at, updated_at).
  * 3. Detect available table columns and only insert compatible keys.
  *
- * Returns: { ok: boolean, inserted?: number, error?: string }
+ * Returns: { ok: boolean, inserted?: number, updated?: number, error?: string }
  */
 
 import { searchNearbyPlaces, getPhotoUrl } from "@/src/lib/google-places";
@@ -48,6 +48,15 @@ function mapPriceLevel(priceLevel?: string): number | null {
   }
 }
 
+/**
+ * syncHoustonCoffeeShops
+ * - Builds payloads from Google Places
+ * - Detects which google_place_id values already exist in the DB
+ * - For existing rows => perform an update (do not overwrite created_at/date_added)
+ * - For new rows => insert full payload including created_at/date_added
+ *
+ * Returns { ok: boolean, inserted?: number, updated?: number, error?: string }
+ */
 export async function syncHoustonCoffeeShops(limit = 8) {
   try {
     // Detect available columns by selecting one row (if any).
@@ -93,18 +102,41 @@ export async function syncHoustonCoffeeShops(limit = 8) {
     // Step 1: Use new Text Search to get rich place data
     const places = await searchNearbyPlaces("coffee shops in Houston, TX", limit);
     if (!places || places.length === 0) {
-      return { ok: true, inserted: 0 };
+      return { ok: true, inserted: 0, updated: 0 };
     }
 
-    // Build rows mapping to the requested schema, then filter keys by availableCols
-    const rows = places.map((p) => {
+    // Collect google_place_ids to detect existing rows
+    const placeIds = places.map((p) => p.id).filter(Boolean) as string[];
+
+    // Query existing rows to know which ids already exist
+    let existingIds = new Set<string>();
+    if (placeIds.length > 0) {
+      const existingRes = await supabase
+        .from("coffee_shops")
+        .select("google_place_id")
+        .in("google_place_id", placeIds);
+      if (!existingRes.error && Array.isArray(existingRes.data)) {
+        for (const row of existingRes.data) {
+          const id = (row as any).google_place_id;
+          if (id) existingIds.add(String(id));
+        }
+      }
+      // If the select errors, we'll treat as if no rows exist and let upsert handle uniqueness.
+    }
+
+    // Build two payload types:
+    // - inserts: include created_at/date_added (if available in table) so newly-created rows get timestamps
+    // - updates: exclude created_at/date_added and exclude null values so we don't clobber good data
+    const inserts: Record<string, unknown>[] = [];
+    const updates: Record<string, unknown>[] = [];
+
+    for (const p of places) {
       const photos =
         Array.isArray(p.photos) && p.photos.length > 0
           ? p.photos.map((photo) => getPhotoUrl(photo.name))
           : null;
 
       const full = {
-        // we don't provide `id` so the DB can default gen_random_uuid()
         google_place_id: p.id ?? null,
         name: p.displayName?.text ?? null,
         address: p.formattedAddress ?? null,
@@ -127,27 +159,51 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         updated_at: nowIso(),
       } as Record<string, unknown>;
 
-      const filtered: Record<string, unknown> = {};
+      // Build insert payload: include available columns and include creation timestamps
+      const insertPayload: Record<string, unknown> = {};
       for (const k of Object.keys(full)) {
-        if (availableCols.includes(k)) {
-          filtered[k] = full[k];
+        if (!availableCols.includes(k)) continue;
+        // For insert we include the value even if null so DB columns are explicitly set
+        insertPayload[k] = full[k];
+      }
+
+      // Build update payload: exclude creation timestamps and skip nulls to avoid clobbering existing DB data
+      const updatePayload: Record<string, unknown> = {};
+      for (const k of Object.keys(full)) {
+        if (!availableCols.includes(k)) continue;
+        if (k === "created_at" || k === "date_added") continue; // preserve originals
+        const val = full[k];
+        if (val === null || typeof val === "undefined") continue; // do not overwrite with null
+        updatePayload[k] = val;
+      }
+
+      // Ensure there's an identifier for updates/inserts
+      if (insertPayload.google_place_id || updatePayload.google_place_id) {
+        if (existingIds.has(String(full.google_place_id))) {
+          // Ensure updatePayload contains google_place_id so upsert can match on it
+          updatePayload.google_place_id = full.google_place_id;
+          updates.push(updatePayload);
+        } else {
+          // For inserts, ensure google_place_id exists
+          insertPayload.google_place_id = full.google_place_id;
+          inserts.push(insertPayload);
         }
       }
-      // Ensure at least `name` or `google_place_id` is present
-      if (Object.keys(filtered).length === 0) {
-        if (availableCols.includes("name")) filtered.name = p.displayName?.text ?? null;
-        else if (availableCols.includes("google_place_id")) filtered.google_place_id = p.id ?? null;
-      }
-      return filtered;
-    });
-
-    // If nothing compatible to insert, fail early
-    if (rows.every((r) => Object.keys(r).length === 0)) {
-      return { ok: false, error: "No compatible columns available for insert into coffee_shops" };
     }
 
-    // Insert rows
-    const { error } = await supabase.from("coffee_shops").insert(rows);
+    const insertedCount = inserts.length;
+    const updatedCount = updates.length;
+
+    // Combine payloads for a single upsert (updates will update columns, inserts will be created)
+    const combined = [...inserts, ...updates];
+
+    if (combined.length === 0) {
+      return { ok: true, inserted: 0, updated: 0 };
+    }
+
+    // Upsert rows, using google_place_id as the conflict target.
+    // Because we omitted created_at/date_added from update payloads, those fields will be preserved on updates.
+    const { error } = await supabase.from("coffee_shops").upsert(combined, { onConflict: "google_place_id" });
 
     if (error) {
       const e = error as unknown as { message?: string };
@@ -155,7 +211,7 @@ export async function syncHoustonCoffeeShops(limit = 8) {
       return { ok: false, error: String(message) };
     }
 
-    return { ok: true, inserted: rows.length };
+    return { ok: true, inserted: insertedCount, updated: updatedCount };
   } catch (err) {
     const message = err instanceof Error ? err.message : JSON.stringify(err);
     return { ok: false, error: String(message) };

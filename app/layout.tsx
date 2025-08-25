@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Auth from "../src/components/Auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <header className="border-b">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12 }}>
+            <div style={{ fontWeight: 600 }}>Full Cup</div>
+            {/* Auth component shows login/signup forms or the user's email when signed in */}
+            <Auth />
+          </div>
+        </header>
         {children}
       </body>
     </html>

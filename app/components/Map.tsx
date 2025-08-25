@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
 
 /**
@@ -100,7 +101,14 @@ export default function Map() {
               const pos: [number, number] = [s.latitude, s.longitude];
               return (
                 <Marker key={s.id} position={pos}>
-                  <Popup>{s.name ?? "Unnamed shop"}</Popup>
+                  <Popup>
+                    <div style={{ minWidth: 160 }}>
+                      <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
+                      <div style={{ marginTop: 6 }}>
+                        <Link href={`/shop/${s.id}`}>View Details</Link>
+                      </div>
+                    </div>
+                  </Popup>
                 </Marker>
               );
             })
