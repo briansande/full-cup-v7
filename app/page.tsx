@@ -1,4 +1,9 @@
 import React from "react";
+import DebugCn from './components/DebugCn';
+// Add Supabase connection status indicator
+import CoffeeShopCount from './components/CoffeeShopCount';
+import SupabaseStatus from './components/SupabaseStatus';
+import TestPlacesButton from './components/TestPlacesButton';
 
 export default function Home() {
   return (
@@ -17,6 +22,10 @@ export default function Home() {
             About Full Cup
           </button>
         </div>
+<DebugCn />
+<SupabaseStatus />
+<CoffeeShopCount />
+<TestPlacesButton />
       </div>
     </div>
   );

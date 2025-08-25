@@ -22,11 +22,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Move suppressHydrationWarning to the body element where the mismatch was reported.
+  // The html element is left unchanged; React will now ignore minor attribute mismatches
+  // on the body during hydration, preventing the reported warning.
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>
