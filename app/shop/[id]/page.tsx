@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { supabase } from '@/src/lib/supabase';
 import ShopStatus from '@/src/components/ShopStatus';
+import ShopReviews from '@/src/components/ShopReviews';
 
 type Props = { params: { id: string } };
 
@@ -117,6 +118,11 @@ export default async function Page({ params }: Props) {
         {/* Client component to let the authenticated user set their status for this shop */}
         <div style={{ marginTop: 18 }}>
           <ShopStatus shopId={String(shop.id)} />
+        </div>
+
+        {/* Simple reviews (rating + optional text) */}
+        <div style={{ marginTop: 18 }}>
+          <ShopReviews shopId={String(shop.id)} />
         </div>
       </div>
     );

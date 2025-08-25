@@ -8,6 +8,7 @@ type Shop = {
   latitude: number | null;
   longitude: number | null;
   status?: string | null;
+  avgRating?: number | null;
 };
 
 export default function useShops() {
@@ -51,6 +52,7 @@ export default function useShops() {
                 ? Number(d.longitude)
                 : null,
             status: null,
+            avgRating: null,
           })) as Shop[];
 
           // Attempt to fetch user's statuses and merge
@@ -77,6 +79,33 @@ export default function useShops() {
             }
           } catch {
             // ignore status fetch failures; show shops without status
+          }
+
+          // Fetch review ratings for all shops and compute average per shop
+          try {
+            const rev = await supabase
+              .from("shop_reviews")
+              .select("shop_id,rating");
+            if (!mountedRef.current) return;
+            if (!rev.error && Array.isArray(rev.data)) {
+              const sums: Record<string, { sum: number; count: number }> = {};
+              for (const row of rev.data) {
+                const sid = String((row as any).shop_id);
+                const rating = Number((row as any).rating ?? 0);
+                if (!sums[sid]) sums[sid] = { sum: 0, count: 0 };
+                sums[sid].sum += rating;
+                sums[sid].count += 1;
+              }
+              for (const shop of mapped) {
+                if (sums[shop.id] && sums[shop.id].count > 0) {
+                  shop.avgRating = sums[shop.id].sum / sums[shop.id].count;
+                } else {
+                  shop.avgRating = null;
+                }
+              }
+            }
+          } catch {
+            // ignore review fetch errors; show shops without avgRating
           }
 
           setShops(mapped);

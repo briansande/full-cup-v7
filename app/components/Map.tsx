@@ -274,6 +274,11 @@ export default function Map() {
                   <Popup>
                     <div style={{ minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
+                      {s.avgRating != null ? (
+                        <div style={{ marginTop: 6 }}>
+                          Average rating: <strong>{Number(s.avgRating).toFixed(1)} ★</strong>
+                        </div>
+                      ) : null}
                       <div style={{ marginTop: 6 }}>
                         <Link href={`/shop/${s.id}`}>View Details</Link>
                       </div>
