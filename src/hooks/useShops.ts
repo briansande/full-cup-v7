@@ -7,6 +7,7 @@ type Shop = {
   name: string | null;
   latitude: number | null;
   longitude: number | null;
+  status?: string | null;
 };
 
 export default function useShops() {
@@ -33,6 +34,7 @@ export default function useShops() {
           setShops([]);
         } else {
           const data = Array.isArray(res.data) ? res.data : [];
+          // Map basic shop info
           const mapped = data.map((d: any) => ({
             id: String(d.id),
             name: d.name ?? null,
@@ -48,7 +50,35 @@ export default function useShops() {
                 : d.longitude
                 ? Number(d.longitude)
                 : null,
-          }));
+            status: null,
+          })) as Shop[];
+
+          // Attempt to fetch user's statuses and merge
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const user = sessionData?.session?.user ?? null;
+            if (user) {
+              const st = await supabase
+                .from("user_shop_status")
+                .select("shop_id,status")
+                .eq("user_id", user.id);
+              if (!mountedRef.current) return;
+              if (!st.error && Array.isArray(st.data)) {
+                const statusMap: Record<string, string> = {};
+                for (const row of st.data) {
+                  const sid = String((row as any).shop_id);
+                  const s = (row as any).status;
+                  if (sid) statusMap[sid] = s;
+                }
+                for (const shop of mapped) {
+                  if (statusMap[shop.id]) shop.status = statusMap[shop.id];
+                }
+              }
+            }
+          } catch {
+            // ignore status fetch failures; show shops without status
+          }
+
           setShops(mapped);
         }
       } catch (err) {

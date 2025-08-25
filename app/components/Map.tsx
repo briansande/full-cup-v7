@@ -7,13 +7,22 @@ import useShops from "@/src/hooks/useShops";
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
  * preventing server-side import of Leaflet (which references `window`) and ensuring
  * default marker icons load correctly in the browser.
+ *
+ * Additionally create color variants for markers based on user's status:
+ * - want_to_try -> blue
+ * - visited -> green
+ * - favorite -> red
+ * - default (no status) -> grey
  */
 export default function Map() {
   const position: [number, number] = [29.7604, -95.3698];
   const { shops, loading } = useShops();
 
   const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
-
+  // Search and filter state
+  const [searchText, setSearchText] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = All
+  
   useEffect(() => {
     let mounted = true;
 
@@ -30,7 +39,6 @@ export default function Map() {
 
       // Configure default icon URLs to point to CDN so marker images load correctly
       try {
-        // mergeOptions available on Icon.Default
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
           iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -41,11 +49,14 @@ export default function Map() {
       }
 
       if (!mounted) return;
+
+      // Provide react-leaflet components and the leaflet module (L) for icon creation
       setRL({
         MapContainer: (mod as any).MapContainer,
         TileLayer: (mod as any).TileLayer,
         Marker: (mod as any).Marker,
         Popup: (mod as any).Popup,
+        L,
       });
     })();
 
@@ -63,19 +74,164 @@ export default function Map() {
     );
   }
 
-  const { MapContainer, TileLayer, Marker, Popup } = RL;
-
+  const { MapContainer, TileLayer, Marker, Popup, L } = RL;
+  
+  // Icon sources for colored markers (from pointhi/leaflet-color-markers)
+  const ICONS: Record<string, { iconUrl: string; iconRetinaUrl: string }> = {
+    default: {
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png",
+      iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png",
+    },
+    want_to_try: {
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+      iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+    },
+    visited: {
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+      iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+    },
+    favorite: {
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+      iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+    },
+  };
+  
+  const shadowUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
+  
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredShops = shops && shops.length > 0
+    ? shops.filter((s: any) => {
+        if (s.latitude == null || s.longitude == null) return false;
+        // If a status filter is active, only include matching statuses (treat null as 'default' which won't match)
+        if (statusFilter) {
+          if ((s.status ?? "default") !== statusFilter) return false;
+        }
+        if (!normalizedSearch) return true;
+        return (s.name ?? "").toLowerCase().includes(normalizedSearch);
+      })
+    : [];
+  
+  function clearFilters() {
+    setSearchText("");
+    setStatusFilter(null);
+  }
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+      {/* Controls overlay */}
+      <div
+        style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          zIndex: 1100,
+          background: "rgba(255,255,255,0.95)",
+          padding: 12,
+          borderRadius: 8,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          aria-label="Search shops"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search shops by name"
+          style={{
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            minWidth: 220,
+            outline: "none",
+          }}
+        />
+  
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={() => setStatusFilter(null)}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: statusFilter === null ? "1px solid #111827" : "1px solid #d1d5db",
+              background: statusFilter === null ? "#111827" : "#fff",
+              color: statusFilter === null ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setStatusFilter("want_to_try")}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: statusFilter === "want_to_try" ? "1px solid #3b82f6" : "1px solid #d1d5db",
+              background: statusFilter === "want_to_try" ? "#3b82f6" : "#fff",
+              color: statusFilter === "want_to_try" ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Want to Try
+          </button>
+          <button
+            onClick={() => setStatusFilter("visited")}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: statusFilter === "visited" ? "1px solid #10b981" : "1px solid #d1d5db",
+              background: statusFilter === "visited" ? "#10b981" : "#fff",
+              color: statusFilter === "visited" ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Visited
+          </button>
+          <button
+            onClick={() => setStatusFilter("favorite")}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: statusFilter === "favorite" ? "1px solid #ef4444" : "1px solid #d1d5db",
+              background: statusFilter === "favorite" ? "#ef4444" : "#fff",
+              color: statusFilter === "favorite" ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Favorites
+          </button>
+        </div>
+  
+        <button
+          onClick={clearFilters}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            background: "#fff",
+            color: "#111827",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Clear Filters
+        </button>
+      </div>
+  
       {loading ? (
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 12,
             left: 12,
             zIndex: 1000,
-            background: 'rgba(255,255,255,0.9)',
-            padding: '6px 8px',
+            background: "rgba(255,255,255,0.9)",
+            padding: "6px 8px",
             borderRadius: 6,
             fontSize: 12,
           }}
@@ -83,24 +239,38 @@ export default function Map() {
           Loading shops...
         </div>
       ) : null}
-
+  
       <MapContainer
         center={position}
         zoom={12}
         scrollWheelZoom={true}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
-        {shops && shops.length > 0
-          ? shops.map((s: any) => {
+  
+        {filteredShops && filteredShops.length > 0
+          ? filteredShops.map((s: any) => {
               if (s.latitude == null || s.longitude == null) return null;
               const pos: [number, number] = [s.latitude, s.longitude];
+  
+              // Pick correct icon for this shop's status
+              const statusKey = s.status ?? "default";
+              const iconInfo = ICONS[statusKey] ?? ICONS.default;
+              const icon = new L.Icon({
+                iconUrl: iconInfo.iconUrl,
+                iconRetinaUrl: iconInfo.iconRetinaUrl,
+                shadowUrl,
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41],
+              });
+  
               return (
-                <Marker key={s.id} position={pos}>
+                <Marker key={s.id} position={pos} icon={icon}>
                   <Popup>
                     <div style={{ minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>

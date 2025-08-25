@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { supabase } from '@/src/lib/supabase';
+import ShopStatus from '@/src/components/ShopStatus';
 
 type Props = { params: { id: string } };
 
@@ -112,6 +113,11 @@ export default async function Page({ params }: Props) {
             {hoursElement}
           </div>
         ) : null}
+
+        {/* Client component to let the authenticated user set their status for this shop */}
+        <div style={{ marginTop: 18 }}>
+          <ShopStatus shopId={String(shop.id)} />
+        </div>
       </div>
     );
   } catch (err) {
