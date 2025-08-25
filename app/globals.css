@@ -80,3 +80,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Leaflet marker fallback: hide broken image placeholder and show a simple dot marker */
+.leaflet-container .leaflet-marker-icon {
+  /* Ensure background fallback is available */
+  background-color: transparent;
+  position: relative;
+}
+
+/* When the default icon images fail to load, hide the broken image rendering */
+.leaflet-container .leaflet-marker-icon[src$="marker-icon.png"],
+.leaflet-container .leaflet-marker-icon[src$="marker-icon-2x.png"],
+.leaflet-container .leaflet-marker-icon[src$="marker-shadow.png"] {
+  color: transparent;
+}
+
+/* Provide a small, simple circular fallback marker so map markers remain visible */
+.leaflet-container .leaflet-marker-icon::after {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #d9534f; /* muted red */
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0,0,0,0.35);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) translateY(-6px);
+  pointer-events: none;
+  z-index: 400;
+}

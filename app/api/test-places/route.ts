@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { textSearchPlaces } from "@/src/lib/google-places";
+import { searchNearbyPlaces } from "@/src/lib/google-places";
 
 /**
  * GET /api/test-places
@@ -10,7 +10,13 @@ import { textSearchPlaces } from "@/src/lib/google-places";
  */
 export async function GET() {
   try {
-    const places = await textSearchPlaces("coffee shops in Houston, TX", 2);
+    const raw = await searchNearbyPlaces("coffee shops in Houston, TX", 2);
+    const places = (raw ?? []).map((p) => ({
+      name: p.displayName?.text ?? null,
+      formatted_address: p.formattedAddress ?? null,
+      place_id: p.id ?? null,
+      rating: p.rating ?? null,
+    }));
     return NextResponse.json({ ok: true, places }, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
