@@ -14,6 +14,7 @@
 
 import { generateGrid, type GridPoint } from "./grid";
 import { nearbySearchWithPagination, type NearbySearchResult } from "./density";
+import { progress } from "./progress";
 
 export type GridSearchResult = {
   gridId: string;
@@ -73,9 +74,17 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
 
   // Normalize chain patterns for case-insensitive matching
   const chainPatterns = filterChains.map((s) => s.toLowerCase());
-
+  
   const points = generateGrid("test");
   const perGrid: GridSearchResult[] = [];
+
+  // Emit a start event so the UI can initialize progress state.
+  // totalEstimatedSearches is the initial count of primary points; consumers may treat this as an estimate.
+  try {
+    progress.emit({ type: "start", totalEstimatedSearches: points.length, mode: "test" });
+  } catch (e) {
+    console.error("[grid-search] progress emit failed:", e);
+  }
 
   let totalApiCalls = 0;
   let totalPlaces = 0;
@@ -106,6 +115,11 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
     // Honor abortSignal before starting each point
     if (abortSignal?.aborted) {
       console.log(`[grid-search] Abort requested before starting grid ${p.id}`);
+      try {
+        progress.emit({ type: "abort", reason: "abortSignal triggered before starting next grid" });
+      } catch (e) {
+        console.error("[grid-search] progress emit failed:", e);
+      }
       aborted = true;
       break;
     }
@@ -120,6 +134,20 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
           aborted = true;
           break;
         }
+      }
+
+      // Notify subscribers we're starting this point's search
+      try {
+        progress.emit({
+          type: "search-start",
+          id: p.id,
+          level: p.level,
+          lat: p.lat,
+          lng: p.lng,
+          radius: p.radius,
+        });
+      } catch (e) {
+        console.error("[grid-search] progress emit failed:", e);
       }
 
       // Perform nearby search with pagination (density helper aggregates pages)
@@ -138,13 +166,13 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
         console.error(
           `Test sync aborted: exceeded maxApiCalls (used ${totalApiCalls} of limit ${maxApiCalls})`
         );
-
+  
         // Still include filtered results for this grid point (post-filter)
         const filteredPlaces = (res.places ?? []).filter((pl) => {
           const name = (pl.name ?? pl.displayName ?? "").toString().toLowerCase();
           return !chainPatterns.some((pat) => name.includes(pat));
         });
-
+  
         perGrid.push({
           gridId: p.id,
           lat: p.lat,
@@ -154,9 +182,24 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
           apiCalls: res.apiCalls,
           places: filteredPlaces,
         });
-
+  
         totalPlaces += filteredPlaces.length;
         searchesRun += 1;
+
+        // Emit search-complete for this point (we processed it but then aborted due to safety limits)
+        try {
+          progress.emit({
+            type: "search-complete",
+            id: p.id,
+            level: p.level,
+            resultCount: filteredPlaces.length,
+            apiCalls: res.apiCalls,
+            subdivided: false,
+          });
+        } catch (e) {
+          console.error("[grid-search] progress emit failed:", e);
+        }
+
         break;
       }
 
@@ -176,9 +219,23 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
         apiCalls: res.apiCalls,
         places,
       });
-
+  
       totalPlaces += places.length;
       searchesRun += 1;
+
+      // Emit search-complete for the UI with metrics for this grid point
+      try {
+        progress.emit({
+          type: "search-complete",
+          id: p.id,
+          level: p.level,
+          resultCount: places.length,
+          apiCalls: res.apiCalls,
+          subdivided: false,
+        });
+      } catch (e) {
+        console.error("[grid-search] progress emit failed:", e);
+      }
     } catch (err) {
       // Log the error for this grid point and continue unless abortSignal triggered
       console.error(`[grid-search] Error during grid ${p.id}:`, err);
@@ -197,11 +254,25 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
     perGrid,
   };
 
+  // Emit final completion (or aborted) summary for UI consumers
+  try {
+    progress.emit({
+      type: "complete",
+      totalAreasSearched: searchesRun,
+      totalPlaces,
+      apiCalls: totalApiCalls,
+      subdivisions: 0,
+      aborted,
+    });
+  } catch (e) {
+    console.error("[grid-search] progress emit failed:", e);
+  }
+
   console.log(
     `Test sync complete: ${searchesRun} searches, ${totalPlaces} coffee shops found, ${totalApiCalls} API calls used${
       aborted ? " — aborted" : ""
     }`
   );
-
+  
   return summary;
 }

@@ -28,6 +28,7 @@ import {
   type NearbySearchResult,
   generateSubdivisionPoints,
 } from "./density";
+import { progress } from "./progress";
 
 /* Exported types */
 export type AdaptiveSearchResult = {
@@ -88,6 +89,13 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     ...p,
     parentId: null,
   }));
+
+  // Emit start so UIs can initialize progress state. Use the initial primary count as an estimate.
+  try {
+    progress.emit({ type: "start", totalEstimatedSearches: initialPoints.length, mode: "test" });
+  } catch (e) {
+    console.error("[adaptive-search] progress emit failed:", e);
+  }
 
   const results: AdaptiveSearchResult[] = [];
   let totalApiCalls = 0;
@@ -158,6 +166,20 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     }
 
     // Execute the nearby search for this task
+    // Notify progress subscribers that this search is starting.
+    try {
+      progress.emit({
+        type: "search-start",
+        id: task.id,
+        level: task.level,
+        lat: task.lat,
+        lng: task.lng,
+        radius: task.radius,
+      });
+    } catch (e) {
+      console.error("[adaptive-search] progress emit failed:", e);
+    }
+
     let nearbyRes: NearbySearchResult | null = null;
     let apiCallsForThisTask = 0;
     let taskPlaces: any[] = [];
@@ -220,6 +242,14 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
         thisResult.subdivided = true;
         subdivisionsCount += subs.length;
         console.log(`AdaptiveSearch: created 4 subdivisions for ${task.id} at level ${task.level + 1}`);
+
+        // Notify progress subscribers that subdivisions were created (children IDs available)
+        try {
+          const childIds = subs.map((c) => c.id);
+          progress.emit({ type: "subdivision-created", parentId: task.id, children: childIds });
+        } catch (e) {
+          console.error("[adaptive-search] progress emit failed:", e);
+        }
       } catch (err) {
         console.error("[adaptive-search] Error generating subdivisions for", task.id, err);
       }
@@ -235,6 +265,20 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
       }`
     );
 
+    // Emit search-complete so UI can update progress; include subdivided flag if subdivisions were generated.
+    try {
+      progress.emit({
+        type: "search-complete",
+        id: thisResult.id,
+        level: thisResult.level,
+        resultCount: thisResult.resultCount,
+        apiCalls: thisResult.apiCalls,
+        subdivided: !!thisResult.subdivided,
+      });
+    } catch (e) {
+      console.error("[adaptive-search] progress emit failed:", e);
+    }
+
     // Save result and update counters
     results.push(thisResult);
     totalPlaces += resultCount;
@@ -245,6 +289,12 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
       console.error(
         `Adaptive sync aborted: exceeded maxApiCalls (used ${totalApiCalls} of limit ${maxApiCalls})`
       );
+      // Emit abort for UI consumers
+      try {
+        progress.emit({ type: "abort", reason: "exceeded maxApiCalls" });
+      } catch (e) {
+        console.error("[adaptive-search] progress emit failed:", e);
+      }
       aborted = true;
       break;
     }
@@ -252,6 +302,11 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     // Honor abortSignal once more at loop end
     if (abortSignal?.aborted) {
       console.log("Adaptive sync aborted: abortSignal triggered");
+      try {
+        progress.emit({ type: "abort", reason: "abortSignal triggered (end-of-loop)" });
+      } catch (e) {
+        console.error("[adaptive-search] progress emit failed:", e);
+      }
       aborted = true;
       break;
     }
@@ -266,12 +321,26 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     results,
   };
 
+  // Emit final completion (or aborted) summary for UI consumers
+  try {
+    progress.emit({
+      type: "complete",
+      totalAreasSearched: summary.totalAreasSearched,
+      totalPlaces: summary.totalPlaces,
+      apiCalls: summary.apiCalls,
+      subdivisions: summary.subdivisions,
+      aborted: summary.aborted,
+    });
+  } catch (e) {
+    console.error("[adaptive-search] progress emit failed:", e);
+  }
+  
   console.log(
     `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
       summary.aborted ? " — aborted" : ""
     }`
   );
-
+  
   return summary;
 }
 
