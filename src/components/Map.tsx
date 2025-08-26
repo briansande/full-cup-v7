@@ -18,12 +18,24 @@ import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay
  */
 export default function Map() {
   const position: [number, number] = [29.7604, -95.3698];
-  const { shops, loading } = useShops();
+  const [dateDays, setDateDays] = useState<number | null>(null);
+  const { shops, loading } = useShops(dateDays);
   
   const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   // Search and filter state
   const [searchText, setSearchText] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = All
+  const DATE_FILTER_OPTIONS = [
+    { label: '7 days', days: 7 },
+    { label: '14 days', days: 14 },
+    { label: '30 days', days: 30 },
+    { label: '60 days', days: 60 },
+  ];
+  const STATUS_LABEL_MAP: Record<string, string> = {
+    want_to_try: "Want to Try",
+    visited: "Visited",
+    favorite: "Favorites",
+  };
 
   // Grid debug overlay state (lazy loaded)
   const [debugVisible, setDebugVisible] = useState<boolean>(false);
@@ -120,10 +132,26 @@ export default function Map() {
         return (s.name ?? "").toLowerCase().includes(normalizedSearch);
       })
     : [];
+
+  const filterCountMessage = (() => {
+    const count = filteredShops ? filteredShops.length : 0;
+    const statusLabel = statusFilter ? (STATUS_LABEL_MAP[statusFilter] ?? statusFilter) : null;
+    if (dateDays) {
+      if (statusLabel) {
+        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days`;
+      }
+      return `Showing ${count} shops added in last ${dateDays} days`;
+    }
+    if (statusLabel) {
+      return `Showing ${count} ${statusLabel.toLowerCase()} shops`;
+    }
+    return `Showing ${count} shops`;
+  })();
   
   function clearFilters() {
     setSearchText("");
     setStatusFilter(null);
+    setDateDays(null);
   }
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
@@ -216,6 +244,43 @@ export default function Map() {
             Favorites
           </button>
         </div>
+
+        {/* Date filter: Show New Shops */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
+          <div style={{ color: "#666", fontSize: 13, marginRight: 6 }}>Show New Shops</div>
+          {DATE_FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.days}
+              onClick={() => setDateDays(opt.days)}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 6,
+                border: dateDays === opt.days ? "2px solid #111827" : "1px solid #d1d5db",
+                background: dateDays === opt.days ? "#111827" : "#fff",
+                color: dateDays === opt.days ? "#fff" : "#111827",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              aria-pressed={dateDays === opt.days}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setDateDays(null)}
+            style={{
+              padding: "6px 8px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              background: "#fff",
+              color: "#666",
+              cursor: "pointer",
+            }}
+            title="Clear date filter"
+          >
+            Clear
+          </button>
+        </div>
   
         <button
           onClick={clearFilters}
@@ -231,7 +296,7 @@ export default function Map() {
         >
           Clear Filters
         </button>
-
+ 
         {showDebugToggle ? (
           <button
             onClick={async () => {
@@ -259,6 +324,23 @@ export default function Map() {
             {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
           </button>
         ) : null}
+      </div>
+
+      {/* Filter count message */}
+      <div
+        style={{
+          position: "absolute",
+          top: 76,
+          left: 12,
+          zIndex: 1100,
+          background: "rgba(255,255,255,0.95)",
+          padding: "6px 10px",
+          borderRadius: 6,
+          fontSize: 12,
+          color: "#333",
+        }}
+      >
+        {filterCountMessage}
       </div>
   
       {loading ? (

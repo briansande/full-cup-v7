@@ -11,7 +11,7 @@ type Shop = {
   avgRating?: number | null;
 };
 
-export default function useShops() {
+export default function useShops(days?: number | null) {
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +24,15 @@ export default function useShops() {
       setLoading(true);
       setError(null);
       try {
-        const res = await supabase
+        let query = supabase
           .from("coffee_shops")
-          .select("id,name,latitude,longitude");
-
+          .select("id,name,latitude,longitude,date_added");
+        if (typeof days === "number" && days > 0) {
+          const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+          query = query.gte("date_added", cutoff);
+        }
+        const res = await query;
+  
         if (!mountedRef.current) return;
 
         if (res.error) {
@@ -122,12 +127,12 @@ export default function useShops() {
 
     fetchShops();
     window.addEventListener("fullcup:sync", fetchShops);
-
+  
     return () => {
       mountedRef.current = false;
       window.removeEventListener("fullcup:sync", fetchShops);
     };
-  }, []);
-
+  }, [days]);
+  
   return { shops, loading, error };
 }
