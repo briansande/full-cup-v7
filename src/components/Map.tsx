@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
+import { generateGrid, GridPoint } from "@/src/lib/grid";
+import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
 
 /**
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
@@ -17,11 +19,19 @@ import useShops from "@/src/hooks/useShops";
 export default function Map() {
   const position: [number, number] = [29.7604, -95.3698];
   const { shops, loading } = useShops();
-
+  
   const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   // Search and filter state
   const [searchText, setSearchText] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = All
+
+  // Grid debug overlay state (lazy loaded)
+  const [debugVisible, setDebugVisible] = useState<boolean>(false);
+  const [debugPoints, setDebugPoints] = useState<GridPoint[] | null>(null);
+
+  // Admin guard for showing debug controls. If no explicit admin check exists,
+  // enable toggle only when NEXT_PUBLIC_GRID_DEBUG_ADMIN === "true"
+  const showDebugToggle = process.env.NEXT_PUBLIC_GRID_DEBUG_ADMIN === "true";
   
   useEffect(() => {
     let mounted = true;
@@ -221,6 +231,34 @@ export default function Map() {
         >
           Clear Filters
         </button>
+
+        {showDebugToggle ? (
+          <button
+            onClick={async () => {
+              const next = !debugVisible;
+              setDebugVisible(next);
+              // Lazy-generate grid points only when turning the overlay ON for the first time
+              if (next && !debugPoints) {
+                const pts = generateGrid('test');
+                setDebugPoints(pts);
+                // Log the required boundaries message when overlay is enabled
+                console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
+              }
+            }}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: debugVisible ? "1px solid #111827" : "1px solid #d1d5db",
+              background: debugVisible ? "#111827" : "#fff",
+              color: debugVisible ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+            title="Toggle grid debug overlay (TEST MODE: 6 points)"
+          >
+            {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
+          </button>
+        ) : null}
       </div>
   
       {loading ? (
@@ -288,6 +326,14 @@ export default function Map() {
               );
             })
           : null}
+
+        {debugPoints ? (
+          <GridDebugOverlay
+            points={debugPoints}
+            visible={debugVisible}
+            modeLabel="TEST MODE: 6 points"
+          />
+        ) : null}
       </MapContainer>
     </div>
   );
