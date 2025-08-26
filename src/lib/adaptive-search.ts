@@ -29,7 +29,37 @@ import {
   generateSubdivisionPoints,
 } from "./density";
 import { progress } from "./progress";
+import { upsertShopsBatch } from "./db-integration";
+import type { NearbyPlace } from "./density";
 
+// Helper to normalize lat/lng across v1 and legacy shapes
+function extractLatLng(p: NearbyPlace): { lat?: number; lng?: number } {
+  const loc: unknown = p.location;
+  let lat: number | undefined;
+  let lng: number | undefined;
+
+  // v1: { location: { latitude, longitude } }
+  if (loc && typeof loc === "object" && "latitude" in (loc as Record<string, unknown>)) {
+    lat = (loc as { latitude?: number }).latitude;
+  }
+  if (loc && typeof loc === "object" && "longitude" in (loc as Record<string, unknown>)) {
+    lng = (loc as { longitude?: number }).longitude;
+  }
+
+  // legacy-ish: { location: { lat, lng } }
+  if (lat === undefined && loc && typeof loc === "object" && "lat" in (loc as Record<string, unknown>)) {
+    lat = (loc as { lat?: number }).lat;
+  }
+  if (lng === undefined && loc && typeof loc === "object" && "lng" in (loc as Record<string, unknown>)) {
+    lng = (loc as { lng?: number }).lng;
+  }
+
+  // fallback: geometry.location.{lat,lng}
+  if (lat === undefined) lat = p.geometry?.location?.lat;
+  if (lng === undefined) lng = p.geometry?.location?.lng;
+
+  return { lat, lng };
+}
 /* Exported types */
 export type AdaptiveSearchResult = {
   id: string;
@@ -38,7 +68,7 @@ export type AdaptiveSearchResult = {
   radius: number;
   level: number;
   parentId?: string | null;
-  places: any[]; // places returned for this task (deduped within the task)
+  places: NearbyPlace[]; // places returned for this task (deduped within the task)
   resultCount: number; // places.length
   apiCalls: number; // apiCalls consumed for this task
   subdivided?: boolean;
@@ -182,7 +212,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
 
     let nearbyRes: NearbySearchResult | null = null;
     let apiCallsForThisTask = 0;
-    let taskPlaces: any[] = [];
+    let taskPlaces: NearbyPlace[] = [];
     try {
       nearbyRes = await nearbySearchWithPagination({
         lat: task.lat,
@@ -194,14 +224,36 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
       totalApiCalls += apiCallsForThisTask;
 
       // Deduplicate within-task by normalized id (prefer place_id/id)
-      const dedupe = new Map<string, any>();
+      const dedupe = new Map<string, NearbyPlace>();
       const pagePlaces = nearbyRes.places ?? [];
       for (const p of pagePlaces) {
-        const pid = (p.place_id as string) ?? (p.placeId as string) ?? (p.id as string) ?? null;
-        const key = pid ?? JSON.stringify({ lat: p.location?.lat ?? p.geometry?.location?.lat, lng: p.location?.lng ?? p.geometry?.location?.lng, name: p.name ?? "" });
+        const pid = p.place_id ?? p.placeId ?? p.id ?? p.name ?? null;
+        const coords = extractLatLng(p);
+        const displayName = (typeof p.name === "string" ? p.name : p.displayName?.text) ?? "";
+        const key = pid ?? JSON.stringify({
+          lat: coords.lat ?? "",
+          lng: coords.lng ?? "",
+          name: displayName
+        });
         if (!dedupe.has(key)) dedupe.set(key, p);
       }
       taskPlaces = Array.from(dedupe.values());
+
+      // Persist task results to DB (test and production parity)
+      try {
+        const batchItems = taskPlaces.map((pl) => ({
+          place: pl,
+          sourceGridId: task.id,
+          gridRadius: task.radius,
+          searchLevel: task.level,
+        }));
+        if (batchItems.length > 0) {
+          const { inserted, updated } = await upsertShopsBatch(batchItems);
+          console.info(`[adaptive-search] DB upsert for ${task.id}: inserted=${inserted} updated=${updated}`);
+        }
+      } catch (e) {
+        console.error(`[adaptive-search] DB upsert failed for ${task.id}:`, e);
+      }
     } catch (err) {
       // Per-task errors are non-fatal; record zero places for this task and continue.
       console.error("[adaptive-search] Error during nearbySearchWithPagination for", task.id, err);

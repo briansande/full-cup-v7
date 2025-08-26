@@ -15,9 +15,11 @@ type Props = {
   modeLabel?: string;
   counts?: Record<string, number>;
   duplicates?: Record<string, number>; // optional map gridId -> duplicate count (for debug badges)
+  dbStatus?: Record<string, { newCount?: number; updatedCount?: number; verifiedCount?: number }>;
+  adminMode?: boolean; // optional prop to enable admin quick-link
 };
 
-export default function GridDebugOverlay({ points, visible, modeLabel, counts, duplicates }: Props) {
+export default function GridDebugOverlay({ points, visible, modeLabel, counts, duplicates, dbStatus, adminMode = false }: Props) {
   const [RL, setRL] = useState<any | null>(null); // lazy-loaded react-leaflet components
 
   useEffect(() => {
@@ -243,6 +245,81 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
                     }}
                   >
                     {duplicates[p.id]}
+                  </div>
+                </RL.Tooltip>
+              )}
+
+              {/* DB-status badges (non-interactive). Shows counts for new inserts (+N), updates (~M),
+                  and a small verified check when verifiedCount > 0. Rendered only when overlay visible
+                  and dbStatus prop is provided. Styling is lightweight and pointerEvents: 'none'. */}
+              {RL?.Tooltip && typeof dbStatus !== "undefined" && dbStatus?.[p.id] && (
+                <RL.Tooltip direction="left" offset={[-10, 0]} permanent interactive={false}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {typeof dbStatus[p.id]?.newCount === "number" && dbStatus[p.id].newCount! > 0 && (
+                      <div
+                        style={{
+                          background: "#16A34A", // green
+                          color: "#fff",
+                          padding: "2px 6px",
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          minWidth: 24,
+                          textAlign: "center",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        +{dbStatus[p.id].newCount}
+                      </div>
+                    )}
+
+                    {typeof dbStatus[p.id]?.updatedCount === "number" && dbStatus[p.id].updatedCount! > 0 && (
+                      <div
+                        style={{
+                          background: "#2563EB", // blue
+                          color: "#fff",
+                          padding: "2px 6px",
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          minWidth: 24,
+                          textAlign: "center",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        ~{dbStatus[p.id].updatedCount}
+                      </div>
+                    )}
+
+                    {typeof dbStatus[p.id]?.verifiedCount === "number" && dbStatus[p.id].verifiedCount! > 0 && (
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          background: "#10B981",
+                          borderRadius: 8,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
                   </div>
                 </RL.Tooltip>
               )}

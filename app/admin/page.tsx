@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Auth from "@/src/components/Auth";
 import { supabase } from "@/src/lib/supabase";
+import AdminSyncControls from "@/src/components/AdminSyncControls";
 
 /**
  * Basic Admin dashboard
@@ -155,7 +156,7 @@ export default function AdminPage() {
     setSyncing(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/sync", { method: "POST" });
+      const res = await fetch("/api/sync", { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json.ok) {
         throw new Error(json?.error ?? `HTTP ${res.status}`);
@@ -192,6 +193,11 @@ export default function AdminPage() {
         <h2 className="font-semibold mb-2">Authentication</h2>
         <div className="mb-3">
           <Auth />
+        </div>
+
+        {/* Admin sync controls (client component) */}
+        <div id="sync-controls" className="mb-4">
+          <AdminSyncControls />
         </div>
 
         <div>

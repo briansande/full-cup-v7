@@ -13,9 +13,10 @@
  */
 
 import { generateGrid, type GridPoint } from "./grid";
-import { nearbySearchWithPagination, type NearbySearchResult } from "./density";
-import { progress } from "./progress";
+import { nearbySearchWithPagination, type NearbySearchResult, type NearbyPlace } from "./density";
+import { progress } from "@/src/lib/progress";
 
+import { upsertShopsBatch } from "./db-integration";
 export type GridSearchResult = {
   gridId: string;
   lat: number;
@@ -23,7 +24,7 @@ export type GridSearchResult = {
   radius: number;
   resultCount: number;
   apiCalls: number;
-  places: any[];
+  places: NearbyPlace[];
 };
 
 export type GridSearchSummary = {
@@ -210,6 +211,21 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
         return !chainPatterns.some((pat) => name.includes(pat));
       });
 
+// Persist filtered results to DB for this grid point
+try {
+  const batchItems = places.map((pl) => ({
+    place: pl,
+    sourceGridId: p.id,
+    gridRadius: p.radius,
+    searchLevel: p.level,
+  }));
+  if (batchItems.length > 0) {
+    const { inserted, updated } = await upsertShopsBatch(batchItems);
+    console.info(`[grid-search] DB upsert for ${p.id}: inserted=${inserted} updated=${updated}`);
+  }
+} catch (e) {
+  console.error(`[grid-search] DB upsert failed for ${p.id}:`, e);
+}
       perGrid.push({
         gridId: p.id,
         lat: p.lat,
