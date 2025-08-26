@@ -7,9 +7,9 @@
  * - function generateSubdivisionPoints(parent, options)
  *
  * Notes:
- * - Uses Google Places API v1 "searchNearby" for paginated nearby searches:
+ * - Uses Google Places API v1 "searchNearby" for nearby searches:
  *   https://places.googleapis.com/v1/places:searchNearby
- * - We keep pagination to a max of 3 pages (~60 results) and set hitLimit=true conservatively.
+ * - searchNearby doesn't support pagination - max 20 results per call
  * - No explicit "any" types to satisfy ESLint.
  */
 
@@ -52,30 +52,25 @@ type NearbySearchParams = {
   lng: number;
   radius: number; // meters
   keyword?: string; // ignored for searchNearby (type-based); retained for compatibility
-  maxPages?: number; // max number of pages to fetch (default 3)
+  maxPages?: number; // ignored since searchNearby doesn't support pagination
 };
 
 interface PlacesNearbyResponse {
   places?: NearbyPlace[];
   results?: NearbyPlace[];
-  nextPageToken?: string;
-  next_page_token?:
-    | string
-    | {
-        token?: string;
-      };
 }
 
 /**
  * nearbySearchWithPagination
  *
- * Perform a Places "nearby" search using the New Places API v1 searchNearby and handle pagination (up to 3 pages).
+ * Perform a Places "nearby" search using the New Places API v1 searchNearby.
+ * Note: Despite the name, this function no longer supports pagination as the 
+ * searchNearby endpoint doesn't support it. Returns up to 20 results max.
  *
- * Returns aggregated unique places (deduped by id), number of API calls made, and hitLimit flag when we conservatively
- * detect the upper bound (~60 results across 3 pages).
+ * Returns unique places (deduped by id), number of API calls made, and hitLimit flag.
  */
 export async function nearbySearchWithPagination(params: NearbySearchParams): Promise<NearbySearchResult> {
-  const { lat, lng, radius, maxPages = 3 } = params; // keyword intentionally unused
+  const { lat, lng, radius } = params; // maxPages and keyword are ignored
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
     throw new Error("Missing Google Maps API key (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
@@ -92,135 +87,96 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     "places.types",
     "places.businessStatus",
     "places.rating",
-    "places.userRatingCount",
-    "nextPageToken"
+    "places.userRatingCount"
   ].join(",");
 
   const aggregatedById = new Map<string, NearbyPlace>();
   let apiCalls = 0;
-  let pageToken: string | undefined = undefined;
-  let anyNextTokenObserved = false;
 
   try {
-    for (let page = 0; page < Math.min(maxPages, 3); page++) {
-      // Request body for Nearby Search (v1)
-      const body: {
-        locationRestriction: {
-          circle: {
-            center: { latitude: number; longitude: number };
-            radius: number;
-          };
-        };
-        includedTypes?: string[];
-        pageSize?: number;
-        pageToken?: string;
-      } = {
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius,
-          },
+    // Request body for Nearby Search (v1) - single request only
+    const body = {
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius,
         },
-        // Focus on cafes/coffee shops
-        includedTypes: ["cafe"],
-        pageSize: 20,
-      };
-      if (pageToken) {
-        body.pageToken = pageToken;
+      },
+      // Focus on cafes/coffee shops
+      includedTypes: ["cafe"],
+      maxResultCount: 20, // Maximum allowed by searchNearby endpoint
+    };
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": fields,
+      },
+      body: JSON.stringify(body),
+    });
+
+    apiCalls++;
+
+    if (!res.ok) {
+      // Non-fatal per task: return partial results with hitLimit=false
+      try {
+        const errText = await res.text();
+        // eslint-disable-next-line no-console
+        console.error(`[density] Places API returned HTTP ${res.status}: ${errText}`);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.error("[density] Places API returned non-OK status and failed to read body.");
       }
+      return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
+    }
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": key,
-          "X-Goog-FieldMask": fields,
-        },
-        body: JSON.stringify(body),
-      });
+    const json = (await res.json()) as unknown as PlacesNearbyResponse;
 
-      apiCalls++;
+    // Prefer canonical "places", else tolerate "results" if present
+    const places: NearbyPlace[] = Array.isArray(json.places)
+      ? json.places
+      : Array.isArray(json.results)
+      ? json.results
+      : [];
 
-      if (!res.ok) {
-        // Non-fatal per task: return partial results with hitLimit=false
-        try {
-          const errText = await res.text();
-          // eslint-disable-next-line no-console
-          console.error(`[density] Places API returned HTTP ${res.status}: ${errText}`);
-        } catch {
-          // eslint-disable-next-line no-console
-          console.error("[density] Places API returned non-OK status and failed to read body.");
-        }
-        return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
+    // Verbose debug when empty/unexpected shape to aid diagnosis
+    if (places.length === 0) {
+      try {
+        // eslint-disable-next-line no-console
+        console.info(
+          `[density] Debug: empty/missing results — lat=${lat} lng=${lng} radius=${radius} apiCalls=${apiCalls}`
+        );
+        // eslint-disable-next-line no-console
+        console.debug("[density] Full Places API response:", json);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.info("[density] Debug: failed to log Places API response");
       }
+    }
 
-      const json = (await res.json()) as unknown as PlacesNearbyResponse;
-
-      // Prefer canonical "places", else tolerate "results" if present
-      const pagePlaces: NearbyPlace[] = Array.isArray(json.places)
-        ? json.places
-        : Array.isArray(json.results)
-        ? json.results
-        : [];
-
-      // Verbose debug when page empty/unexpected shape to aid diagnosis
-      if (pagePlaces.length === 0) {
-        try {
-          // eslint-disable-next-line no-console
-          console.info(
-            `[density] Debug: empty/missing page — lat=${lat} lng=${lng} radius=${radius} page=${page} pageToken=${pageToken} apiCalls=${apiCalls}`
-          );
-          // eslint-disable-next-line no-console
-          console.debug("[density] Full Places API response:", json);
-        } catch {
-          // eslint-disable-next-line no-console
-          console.info("[density] Debug: failed to log Places API response");
-        }
-      }
-
-      for (const p of pagePlaces) {
-        // Normalize id (prefer place_id, then placeId, then id, then resource "name")
-        const pid =
-          p.place_id ??
-          p.placeId ??
-          p.id ??
-          p.name;
-        if (!pid) {
-          // Fallback to coordinates + name composite
-          const latVal =
-            (typeof (p.location as { lat?: number } | undefined)?.lat === "number"
-              ? (p.location as { lat?: number }).lat
-              : (p.geometry?.location?.lat ?? (p.location as { latitude?: number } | undefined)?.latitude)) ?? "";
-          const lngVal =
-            (typeof (p.location as { lng?: number } | undefined)?.lng === "number"
-              ? (p.location as { lng?: number }).lng
-              : (p.geometry?.location?.lng ?? (p.location as { longitude?: number } | undefined)?.longitude)) ?? "";
-          const fallbackId = `unknown-${latVal}-${lngVal}-${p.name ?? ""}`;
-          if (!aggregatedById.has(fallbackId)) aggregatedById.set(fallbackId, p);
-        } else if (!aggregatedById.has(pid)) {
-          aggregatedById.set(pid, p);
-        }
-      }
-
-      // Next page token (v1: nextPageToken)
-      const token =
-        json.nextPageToken ??
-        (typeof json.next_page_token === "string" ? json.next_page_token : json.next_page_token?.token);
-      if (token) {
-        anyNextTokenObserved = true;
-        pageToken = token;
-
-        const total = aggregatedById.size;
-        if (total >= 60) {
-          // Upper-bound reached; conservatively claim hitLimit
-          return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: true };
-        }
-
-        // Token often needs ~2 seconds before valid; wait before fetching next page
-        await new Promise<void>((resolve) => setTimeout(resolve, 2000));
-      } else {
-        // No further pages
-        break;
+    for (const p of places) {
+      // Normalize id (prefer place_id, then placeId, then id, then resource "name")
+      const pid =
+        p.place_id ??
+        p.placeId ??
+        p.id ??
+        p.name;
+      if (!pid) {
+        // Fallback to coordinates + name composite
+        const latVal =
+          (typeof (p.location as { lat?: number } | undefined)?.lat === "number"
+            ? (p.location as { lat?: number }).lat
+            : (p.geometry?.location?.lat ?? (p.location as { latitude?: number } | undefined)?.latitude)) ?? "";
+        const lngVal =
+          (typeof (p.location as { lng?: number } | undefined)?.lng === "number"
+            ? (p.location as { lng?: number }).lng
+            : (p.geometry?.location?.lng ?? (p.location as { longitude?: number } | undefined)?.longitude)) ?? "";
+        const fallbackId = `unknown-${latVal}-${lngVal}-${p.name ?? ""}`;
+        if (!aggregatedById.has(fallbackId)) aggregatedById.set(fallbackId, p);
+      } else if (!aggregatedById.has(pid)) {
+        aggregatedById.set(pid, p);
       }
     }
   } catch (err) {
@@ -231,7 +187,9 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
   }
 
   const finalPlaces = Array.from(aggregatedById.values());
-  const hitLimit = finalPlaces.length >= 60 || (anyNextTokenObserved && finalPlaces.length >= 60);
+  // Since searchNearby doesn't support pagination, we can only get max 20 results
+  // Set hitLimit to true if we got exactly 20 results (indicating there might be more)
+  const hitLimit = finalPlaces.length === 20;
   return { places: finalPlaces, apiCalls, hitLimit };
 }
 
