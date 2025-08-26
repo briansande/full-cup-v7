@@ -9,6 +9,12 @@
  * - type AdaptiveSearchSummary
  * - async function runAdaptiveTestSync(options?)
  *
+ * Enhanced with comprehensive coffee shop filtering system:
+ * - Uses multi-layer filtering: chains, keywords, types, and quality validation
+ * - Applies Houston area geographic validation
+ * - Provides detailed filtering statistics for monitoring
+ * - Maintains compatibility with existing API but with vastly improved results
+ *
  * Heuristics / comments:
  * - Default subdivision offsetKm = 1 and radius = 1000m (matching generateSubdivisionPoints).
  * - Default maxDepth = 4 to avoid runaway recursion in pathological cases.
@@ -31,6 +37,7 @@ import {
 import { progress } from "./progress";
 import { upsertShopsBatch } from "./db-integration";
 import type { NearbyPlace } from "./density";
+import { applyCoffeeShopFilters } from "./coffee-filtering";
 
 // Helper to normalize lat/lng across v1 and legacy shapes
 function extractLatLng(p: NearbyPlace): { lat?: number; lng?: number } {
@@ -60,6 +67,7 @@ function extractLatLng(p: NearbyPlace): { lat?: number; lng?: number } {
 
   return { lat, lng };
 }
+
 /* Exported types */
 export type AdaptiveSearchResult = {
   id: string;
@@ -68,10 +76,18 @@ export type AdaptiveSearchResult = {
   radius: number;
   level: number;
   parentId?: string | null;
-  places: NearbyPlace[]; // places returned for this task (deduped within the task)
-  resultCount: number; // places.length
+  places: NearbyPlace[]; // places returned for this task (deduped within the task and filtered)
+  resultCount: number; // places.length after filtering
   apiCalls: number; // apiCalls consumed for this task
   subdivided?: boolean;
+  filterStats?: {
+    original: number;
+    afterChainFilter: number;
+    afterKeywordFilter: number;
+    afterTypeFilter: number;
+    afterQualityFilter: number;
+    final: number;
+  };
 };
 
 export type AdaptiveSearchSummary = {
@@ -81,6 +97,14 @@ export type AdaptiveSearchSummary = {
   subdivisions: number;
   aborted: boolean;
   results: AdaptiveSearchResult[];
+  totalFilterStats?: {
+    original: number;
+    afterChainFilter: number;
+    afterKeywordFilter: number;
+    afterTypeFilter: number;
+    afterQualityFilter: number;
+    final: number;
+  };
 };
 
 type RunOptions = {
@@ -89,6 +113,7 @@ type RunOptions = {
   maxDepth?: number; // maximum subdivision depth
   debugLog?: boolean; // whether to log debug messages (default true)
   abortSignal?: AbortSignal; // optional abort signal
+  enableFiltering?: boolean; // enable comprehensive filtering system (default true)
 };
 
 /**
@@ -97,11 +122,15 @@ type RunOptions = {
  * Process a FIFO queue of grid/search tasks starting from generateGrid('test').
  * Subdivide a task into 4 children when a search appears to have hit the Places API limit.
  *
+ * Enhanced with comprehensive filtering system that applies multiple layers of validation
+ * to ensure only legitimate coffee shops are included in results.
+ *
  * Default options:
  * - maxApiCalls = 50
  * - rateLimitMs = 1000
  * - maxDepth = 4
  * - debugLog = true
+ * - enableFiltering = true
  */
 export async function runAdaptiveTestSync(options?: RunOptions): Promise<AdaptiveSearchSummary> {
   const {
@@ -110,6 +139,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     maxDepth = 4,
     debugLog = true,
     abortSignal,
+    enableFiltering = true,
   } = options ?? {};
 
   // FIFO queue of pending tasks (GridPoint-like objects). parentId may be added later.
@@ -133,6 +163,16 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
   let totalPlaces = 0;
   let aborted = false;
   let processedCount = 0;
+
+  // Cumulative filtering statistics
+  const totalFilterStats = {
+    original: 0,
+    afterChainFilter: 0,
+    afterKeywordFilter: 0,
+    afterTypeFilter: 0,
+    afterQualityFilter: 0,
+    final: 0,
+  };
 
   // Helper sleep that honors abortSignal
   const sleep = (ms: number) =>
@@ -213,6 +253,11 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     let nearbyRes: NearbySearchResult | null = null;
     let apiCallsForThisTask = 0;
     let taskPlaces: NearbyPlace[] = [];
+    let filterStats = undefined;
+    // Count of deduplicated places returned by the API before applying our keyword/type/quality filters.
+    // Declared in outer scope so subdivision decision logic (outside the try/catch) can reference it.
+    let preFilterCount = 0;
+    
     try {
       nearbyRes = await nearbySearchWithPagination({
         lat: task.lat,
@@ -237,7 +282,41 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
         });
         if (!dedupe.has(key)) dedupe.set(key, p);
       }
-      taskPlaces = Array.from(dedupe.values());
+      
+      const deduplicatedPlaces = Array.from(dedupe.values());
+      // Set pre-filter count (deduplicated) so we can decide to subdivide based on
+      // how many unique items the API returned before filtering.
+      preFilterCount = deduplicatedPlaces.length;
+
+      // Apply comprehensive filtering system
+      if (enableFiltering && deduplicatedPlaces.length > 0) {
+        const filterResult = applyCoffeeShopFilters(deduplicatedPlaces);
+        taskPlaces = filterResult.filtered;
+        filterStats = filterResult.stats;
+        
+        // Update cumulative stats
+        totalFilterStats.original += filterStats.original;
+        totalFilterStats.afterChainFilter += filterStats.afterChainFilter;
+        totalFilterStats.afterKeywordFilter += filterStats.afterKeywordFilter;
+        totalFilterStats.afterTypeFilter += filterStats.afterTypeFilter;
+        totalFilterStats.afterQualityFilter += filterStats.afterQualityFilter;
+        totalFilterStats.final += filterStats.final;
+
+        if (debugLog) {
+          console.log(`[adaptive-search] ${task.id} filtering results:`);
+          console.log(`  Original: ${filterStats.original}`);
+          console.log(`  After chain filter: ${filterStats.afterChainFilter} (${filterStats.original - filterStats.afterChainFilter} removed)`);
+          console.log(`  After keyword filter: ${filterStats.afterKeywordFilter} (${filterStats.afterChainFilter - filterStats.afterKeywordFilter} removed)`);
+          console.log(`  After type filter: ${filterStats.afterTypeFilter} (${filterStats.afterKeywordFilter - filterStats.afterTypeFilter} removed)`);
+          console.log(`  After quality filter: ${filterStats.afterQualityFilter} (${filterStats.afterTypeFilter - filterStats.afterQualityFilter} removed)`);
+          console.log(`  Final: ${filterStats.final} (${Math.round((filterStats.final/filterStats.original)*100)}% passed)`);
+        }
+      } else {
+        taskPlaces = deduplicatedPlaces;
+        if (!enableFiltering && debugLog) {
+          console.log(`[adaptive-search] ${task.id} filtering disabled - using all ${taskPlaces.length} results`);
+        }
+      }
 
       // Persist task results to DB (test and production parity)
       try {
@@ -275,12 +354,28 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
       resultCount,
       apiCalls: apiCallsForThisTask,
       subdivided: false,
+      filterStats,
     };
 
     // Decide whether to subdivide:
-    const hitLimit = nearbyRes?.hitLimit ?? false;
-    // Conservative: also subdivide if resultCount >= 60 (Places API known upper-bound)
-    const reachedBound = resultCount >= 60;
+    const rawCount = nearbyRes?.rawCount ?? (nearbyRes?.places?.length ?? 0);
+    // Prefer raw API response count to detect truncation (searchNearby maxResultCount = 20).
+    // Also consider the pre-filter (deduplicated) count and original filter count so that
+    // filtering does not prevent subdivision when the API returned a full page.
+    const hitLimit = nearbyRes?.hitLimit ?? rawCount >= 20;
+    // reachedBound when ANY of:
+    //  - raw API returned the page size (rawCount >= 20)
+    //  - the deduplicated pre-filter count is >= 20
+    //  - when filtering is enabled and we have stats, the original (pre-filter) count >= 20
+    const reachedBound =
+      rawCount >= 20 ||
+      preFilterCount >= 20 ||
+      (enableFiltering && filterStats ? (filterStats.original ?? 0) >= 20 : false);
+    if (debugLog) {
+      console.log(
+        `[adaptive-search] ${task.id} counts: raw=${rawCount}, preFilter=${preFilterCount}, filtered=${resultCount}, hitLimit=${hitLimit}, reachedBound=${reachedBound}`
+      );
+    }
 
     if ((hitLimit || reachedBound) && task.level < maxDepth) {
       // Generate 4 subdivisions using helper
@@ -310,9 +405,11 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
       console.log(`Max subdivision depth reached for ${task.id}`);
     }
 
-    // Log the processed task message
+    // Log the processed task message with filtering information
+    const filteringInfo = enableFiltering && filterStats ? 
+      ` — filtered ${filterStats.original} → ${filterStats.final}` : "";
     console.log(
-      `AdaptiveSearch: processed ${task.id} (level ${task.level}) — ${resultCount} places — apiCalls=${apiCallsForThisTask}${
+      `AdaptiveSearch: processed ${task.id} (level ${task.level}) — ${resultCount} places — apiCalls=${apiCallsForThisTask}${filteringInfo}${
         thisResult.subdivided ? " — subdivided" : ""
       }`
     );
@@ -371,6 +468,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     subdivisions: subdivisionsCount,
     aborted,
     results,
+    totalFilterStats: enableFiltering ? totalFilterStats : undefined,
   };
 
   // Emit final completion (or aborted) summary for UI consumers
@@ -387,11 +485,27 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     console.error("[adaptive-search] progress emit failed:", e);
   }
   
-  console.log(
-    `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
-      summary.aborted ? " — aborted" : ""
-    }`
-  );
+  // Enhanced completion logging with filtering statistics
+  if (enableFiltering && totalFilterStats.original > 0) {
+    const filteringEfficiency = Math.round((totalFilterStats.final / totalFilterStats.original) * 100);
+    console.log(
+      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
+        summary.aborted ? " — aborted" : ""
+      }`
+    );
+    console.log(`Filtering efficiency: ${totalFilterStats.original} → ${totalFilterStats.final} (${filteringEfficiency}% passed)`);
+    console.log("Filtering breakdown:");
+    console.log(`  Chain filter removed: ${totalFilterStats.original - totalFilterStats.afterChainFilter}`);
+    console.log(`  Keyword filter removed: ${totalFilterStats.afterChainFilter - totalFilterStats.afterKeywordFilter}`);
+    console.log(`  Type filter removed: ${totalFilterStats.afterKeywordFilter - totalFilterStats.afterTypeFilter}`);
+    console.log(`  Quality filter removed: ${totalFilterStats.afterTypeFilter - totalFilterStats.afterQualityFilter}`);
+  } else {
+    console.log(
+      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
+        summary.aborted ? " — aborted" : ""
+      }${!enableFiltering ? " (filtering disabled)" : ""}`
+    );
+  }
   
   return summary;
 }

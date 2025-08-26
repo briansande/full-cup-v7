@@ -10,12 +10,14 @@
  * - Uses Google Places API v1 "searchNearby" for nearby searches:
  *   https://places.googleapis.com/v1/places:searchNearby
  * - searchNearby doesn't support pagination - max 20 results per call
+ * - Enhanced filtering using includedPrimaryTypes and excludedPrimaryTypes
  * - No explicit "any" types to satisfy ESLint.
  */
 
 import type { GridPoint } from "./grid";
+import { INCLUDED_PRIMARY_TYPES, EXCLUDED_PRIMARY_TYPES } from "./coffee-filtering";
 
-/* Minimal shape for nearby search items we operate on across the app */
+/* Enhanced shape for nearby search items we operate on across the app */
 export type NearbyPlace = {
   id?: string;
   place_id?: string;
@@ -36,15 +38,58 @@ export type NearbyPlace = {
     };
   };
   types?: string[];
+  primaryType?: string;
+  primaryTypeDisplayName?: {
+    text: string;
+    languageCode?: string;
+  };
   businessStatus?: string;
   rating?: number;
   userRatingCount?: number;
+  priceLevel?: number;
+  currentOpeningHours?: {
+    openNow?: boolean;
+    periods?: Array<{
+      open: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+      close?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+    }>;
+    weekdayDescriptions?: string[];
+  };
+  regularOpeningHours?: {
+    openNow?: boolean;
+    periods?: Array<{
+      open: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+      close?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+    }>;
+    weekdayDescriptions?: string[];
+  };
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+  shortFormattedAddress?: string;
 };
 
 export type NearbySearchResult = {
-  places: NearbyPlace[];
+  places: NearbyPlace[]; // deduped/aggregated places returned by this helper
   apiCalls: number;
-  hitLimit: boolean;
+  hitLimit: boolean; // true when the raw API response hit the maxResultCount (indicating possible truncation)
+  rawCount?: number; // number of items returned by the raw API response before any deduplication/filtering
 };
 
 type NearbySearchParams = {
@@ -67,6 +112,7 @@ interface PlacesNearbyResponse {
  * Note: Despite the name, this function no longer supports pagination as the 
  * searchNearby endpoint doesn't support it. Returns up to 20 results max.
  *
+ * Enhanced with proper primary type filtering and comprehensive field requests.
  * Returns unique places (deduped by id), number of API calls made, and hitLimit flag.
  */
 export async function nearbySearchWithPagination(params: NearbySearchParams): Promise<NearbySearchResult> {
@@ -78,23 +124,45 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
 
   const endpoint = "https://places.googleapis.com/v1/places:searchNearby";
 
-  // Field mask should request displayName (not just name), formattedAddress, id, location, etc.
+  // Comprehensive field mask for enhanced filtering and data quality
   const fields = [
+    // Basic identification
     "places.id",
+    "places.name", // Legacy field for compatibility
     "places.displayName",
     "places.formattedAddress",
+    "places.shortFormattedAddress",
+    
+    // Location data
     "places.location",
+    
+    // Type information (crucial for filtering)
     "places.types",
+    "places.primaryType",
+    "places.primaryTypeDisplayName",
+    
+    // Business status and quality indicators
     "places.businessStatus",
     "places.rating",
-    "places.userRatingCount"
+    "places.userRatingCount",
+    "places.priceLevel",
+    
+    // Operating hours (for coffee shop validation)
+    "places.currentOpeningHours",
+    "places.regularOpeningHours",
+    
+    // Contact information
+    "places.websiteUri",
+    "places.nationalPhoneNumber",
+    "places.internationalPhoneNumber"
   ].join(",");
 
   const aggregatedById = new Map<string, NearbyPlace>();
   let apiCalls = 0;
+  let rawCount = 0;
 
   try {
-    // Request body for Nearby Search (v1) - single request only
+    // Enhanced request body using primary types for better filtering
     const body = {
       locationRestriction: {
         circle: {
@@ -102,9 +170,13 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
           radius,
         },
       },
-      // Focus on cafes/coffee shops
-      includedTypes: ["cafe"],
+      // Use includedPrimaryTypes for precise coffee shop targeting
+      includedPrimaryTypes: INCLUDED_PRIMARY_TYPES,
+      // Exclude types that are definitely not coffee shops
+      excludedPrimaryTypes: EXCLUDED_PRIMARY_TYPES,
       maxResultCount: 20, // Maximum allowed by searchNearby endpoint
+      // Add ranking preference for better quality results
+      rankPreference: "POPULARITY",
     };
 
     const res = await fetch(endpoint, {
@@ -118,18 +190,22 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     });
 
     apiCalls++;
-
+  
     if (!res.ok) {
       // Non-fatal per task: return partial results with hitLimit=false
       try {
         const errText = await res.text();
         // eslint-disable-next-line no-console
         console.error(`[density] Places API returned HTTP ${res.status}: ${errText}`);
+        
+        // Log the request body for debugging API issues
+        // eslint-disable-next-line no-console
+        console.debug("[density] Request body that failed:", JSON.stringify(body, null, 2));
       } catch {
         // eslint-disable-next-line no-console
         console.error("[density] Places API returned non-OK status and failed to read body.");
       }
-      return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
+      return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false, rawCount };
     }
 
     const json = (await res.json()) as unknown as PlacesNearbyResponse;
@@ -141,7 +217,11 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
       ? json.results
       : [];
 
-    // Verbose debug when empty/unexpected shape to aid diagnosis
+    // Capture the raw API result count before any deduplication/aggregation so callers
+    // (like adaptive-search) can decide to subdivide based on what the API returned.
+    rawCount = places.length;
+
+    // Enhanced debug logging with more context
     if (places.length === 0) {
       try {
         // eslint-disable-next-line no-console
@@ -149,22 +229,34 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
           `[density] Debug: empty/missing results — lat=${lat} lng=${lng} radius=${radius} apiCalls=${apiCalls}`
         );
         // eslint-disable-next-line no-console
+        console.debug("[density] Request body used:", JSON.stringify(body, null, 2));
+        // eslint-disable-next-line no-console
         console.debug("[density] Full Places API response:", json);
       } catch {
         // eslint-disable-next-line no-console
         console.info("[density] Debug: failed to log Places API response");
       }
+    } else {
+      // Log successful results with type information
+      const primaryTypes = places.map(p => p.primaryType).filter(Boolean);
+      const uniqueTypes = [...new Set(primaryTypes)];
+      // eslint-disable-next-line no-console
+      console.info(
+        `[density] Found ${places.length} places with primary types: ${uniqueTypes.join(", ")}`
+      );
     }
 
     for (const p of places) {
-      // Normalize id (prefer place_id, then placeId, then id, then resource "name")
+      // Enhanced ID normalization with better fallbacks
       const pid =
         p.place_id ??
         p.placeId ??
         p.id ??
-        p.name;
+        p.name ??
+        (p.displayName?.text);
+        
       if (!pid) {
-        // Fallback to coordinates + name composite
+        // Enhanced fallback to coordinates + name composite
         const latVal =
           (typeof (p.location as { lat?: number } | undefined)?.lat === "number"
             ? (p.location as { lat?: number }).lat
@@ -173,24 +265,43 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
           (typeof (p.location as { lng?: number } | undefined)?.lng === "number"
             ? (p.location as { lng?: number }).lng
             : (p.geometry?.location?.lng ?? (p.location as { longitude?: number } | undefined)?.longitude)) ?? "";
-        const fallbackId = `unknown-${latVal}-${lngVal}-${p.name ?? ""}`;
-        if (!aggregatedById.has(fallbackId)) aggregatedById.set(fallbackId, p);
+        const displayName = p.displayName?.text ?? p.name ?? "";
+        const fallbackId = `unknown-${latVal}-${lngVal}-${displayName}`;
+        
+        if (!aggregatedById.has(fallbackId)) {
+          aggregatedById.set(fallbackId, p);
+        }
       } else if (!aggregatedById.has(pid)) {
         aggregatedById.set(pid, p);
       }
     }
   } catch (err) {
-    // Non-fatal error: return partial results and indicate no hitLimit
+    // Enhanced error logging with more context
     // eslint-disable-next-line no-console
     console.error("[density] Error during nearbySearchWithPagination:", err);
-    return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
+    // eslint-disable-next-line no-console
+    console.error(`[density] Search context: lat=${lat}, lng=${lng}, radius=${radius}`);
+    return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false, rawCount };
   }
 
   const finalPlaces = Array.from(aggregatedById.values());
-  // Since searchNearby doesn't support pagination, we can only get max 20 results
-  // Set hitLimit to true if we got exactly 20 results (indicating there might be more)
-  const hitLimit = finalPlaces.length === 20;
-  return { places: finalPlaces, apiCalls, hitLimit };
+  
+  // Enhanced logging of results with type analysis
+  if (finalPlaces.length > 0) {
+    const typeCounts = finalPlaces.reduce((acc, place) => {
+      const type = place.primaryType || "unknown";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // eslint-disable-next-line no-console
+    console.info(`[density] Result type breakdown:`, typeCounts);
+  }
+  
+  // Since searchNearby doesn't support pagination, the raw API can only return up to 20 items.
+  // Use the raw API response count (rawCount) to determine whether the API likely truncated results.
+  const hitLimit = rawCount === 20;
+  return { places: finalPlaces, apiCalls, hitLimit, rawCount };
 }
 
 /**

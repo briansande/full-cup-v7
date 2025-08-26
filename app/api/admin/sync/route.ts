@@ -119,12 +119,11 @@ export async function POST(request: Request) {
           }
 
           let summary: any = null;
-          if (mode === "test") {
-            summary = await runTestAreaSync({ maxApiCalls, abortSignal: abortController.signal });
-          } else {
-            // production: adaptive runner
-            summary = await runAdaptiveTestSync({ maxApiCalls, abortSignal: abortController.signal });
-          }
+          // Use the adaptive runner for both test and production runs so that
+          // subdivision decisions are based on the raw Places API response count
+          // (rawCount) rather than post-filtered counts. This prevents test runs
+          // from skipping subdivisions when filtering reduces the visible results.
+          summary = await runAdaptiveTestSync({ maxApiCalls, abortSignal: abortController.signal });
 
           const endAt = new Date().toISOString();
 

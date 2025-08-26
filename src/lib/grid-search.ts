@@ -7,7 +7,7 @@
  * - Generates the 2x3 test grid via generateGrid('test')
  * - Uses nearbySearchWithPagination from density.ts which handles pagination internally
  * - Rate-limits 1s (configurable) between top-level grid searches (not between pages)
- * - Filters out major chains by simple case-insensitive substring heuristics
+ * - Applies comprehensive coffee shop filtering system
  * - Aborts immediately if cumulative API calls exceed safety limit
  * - Returns an in-memory summary object with per-grid and global stats
  */
@@ -15,6 +15,7 @@
 import { generateGrid, type GridPoint } from "./grid";
 import { nearbySearchWithPagination, type NearbySearchResult, type NearbyPlace } from "./density";
 import { progress } from "@/src/lib/progress";
+import { applyCoffeeShopFilters, type FilteredPlace } from "./coffee-filtering";
 
 import { upsertShopsBatch } from "./db-integration";
 export type GridSearchResult = {
@@ -25,6 +26,14 @@ export type GridSearchResult = {
   resultCount: number;
   apiCalls: number;
   places: NearbyPlace[];
+  filterStats?: {
+    original: number;
+    afterChainFilter: number;
+    afterKeywordFilter: number;
+    afterTypeFilter: number;
+    afterQualityFilter: number;
+    final: number;
+  };
 };
 
 export type GridSearchSummary = {
@@ -33,13 +42,22 @@ export type GridSearchSummary = {
   apiCalls: number;
   aborted: boolean;
   perGrid: GridSearchResult[];
+  totalFilterStats?: {
+    original: number;
+    afterChainFilter: number;
+    afterKeywordFilter: number;
+    afterTypeFilter: number;
+    afterQualityFilter: number;
+    final: number;
+  };
 };
 
 type RunOptions = {
   maxApiCalls?: number;
   rateLimitMs?: number;
-  filterChains?: string[];
+  filterChains?: string[]; // Legacy option - now handled by comprehensive filtering
   abortSignal?: AbortSignal;
+  enableFiltering?: boolean; // Option to disable filtering for debugging
 };
 
 /**
@@ -47,34 +65,29 @@ type RunOptions = {
  *
  * - options.maxApiCalls: safety limit for total API calls (default 25)
  * - options.rateLimitMs: ms to wait between top-level grid searches (default 1000)
- * - options.filterChains: case-insensitive substrings to filter out (major chains)
+ * - options.filterChains: DEPRECATED - filtering now uses comprehensive system
  * - options.abortSignal: optional AbortSignal for UI-driven aborts (honored between waits and before searches)
+ * - options.enableFiltering: enable comprehensive filtering system (default true)
  *
- * Heuristics/comments:
- * - Chain filter uses simple case-insensitive substring matching against place.name or place.displayName.
- * - Rate-limiting is applied only between starting each grid point's top-level search
- *   (density helper handles internal page delays and counts).
+ * Enhanced filtering system:
+ * - Uses multi-layer filtering: chains, keywords, types, and quality validation
+ * - Applies Houston area geographic validation
+ * - Provides detailed filtering statistics for monitoring
+ * - Maintains compatibility with existing API but with vastly improved results
  */
 export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchSummary> {
   const {
     maxApiCalls = 25,
     rateLimitMs = 1000,
-    filterChains = [
-      "starbucks",
-      "dunkin",
-      "dunkin donuts",
-      "peet",
-      "tim hortons",
-      "cafe rio",
-      "mcdonald",
-      "mcafe",
-      "caribou",
-    ],
+    filterChains = [], // Deprecated but kept for compatibility
     abortSignal,
+    enableFiltering = true,
   } = options ?? {};
 
-  // Normalize chain patterns for case-insensitive matching
-  const chainPatterns = filterChains.map((s) => s.toLowerCase());
+  // Log deprecation warning if filterChains is used
+  if (filterChains.length > 0) {
+    console.warn("[grid-search] filterChains option is deprecated. Using comprehensive filtering system instead.");
+  }
   
   const points = generateGrid("test");
   const perGrid: GridSearchResult[] = [];
@@ -91,6 +104,16 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
   let totalPlaces = 0;
   let searchesRun = 0;
   let aborted = false;
+
+  // Cumulative filtering statistics
+  let totalFilterStats = {
+    original: 0,
+    afterChainFilter: 0,
+    afterKeywordFilter: 0,
+    afterTypeFilter: 0,
+    afterQualityFilter: 0,
+    final: 0,
+  };
 
   // Helper: sleep with abortSignal support
   const sleep = (ms: number) =>
@@ -168,12 +191,26 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
           `Test sync aborted: exceeded maxApiCalls (used ${totalApiCalls} of limit ${maxApiCalls})`
         );
   
-        // Still include filtered results for this grid point (post-filter)
-        const filteredPlaces = (res.places ?? []).filter((pl) => {
-          const name = (pl.name ?? pl.displayName ?? "").toString().toLowerCase();
-          return !chainPatterns.some((pat) => name.includes(pat));
-        });
-  
+        // Apply comprehensive filtering to results before including them
+        let filteredPlaces: NearbyPlace[] = res.places ?? [];
+        let filterStats = undefined;
+        
+        if (enableFiltering && filteredPlaces.length > 0) {
+          const filterResult = applyCoffeeShopFilters(filteredPlaces);
+          filteredPlaces = filterResult.filtered;
+          filterStats = filterResult.stats;
+          
+          // Update cumulative stats
+          totalFilterStats.original += filterStats.original;
+          totalFilterStats.afterChainFilter += filterStats.afterChainFilter;
+          totalFilterStats.afterKeywordFilter += filterStats.afterKeywordFilter;
+          totalFilterStats.afterTypeFilter += filterStats.afterTypeFilter;
+          totalFilterStats.afterQualityFilter += filterStats.afterQualityFilter;
+          totalFilterStats.final += filterStats.final;
+
+          console.log(`[grid-search] ${p.id} filtering: ${filterStats.original} → ${filterStats.final} places (${Math.round((filterStats.final/filterStats.original)*100)}% passed)`);
+        }
+
         perGrid.push({
           gridId: p.id,
           lat: p.lat,
@@ -182,6 +219,7 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
           resultCount: filteredPlaces.length,
           apiCalls: res.apiCalls,
           places: filteredPlaces,
+          filterStats,
         });
   
         totalPlaces += filteredPlaces.length;
@@ -204,28 +242,51 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
         break;
       }
 
-      // Filter out major chains by name heuristics (case-insensitive substring)
-      const places = (res.places ?? []).filter((pl) => {
-        const rawName = (pl.name ?? pl.displayName ?? "").toString();
-        const name = rawName.toLowerCase();
-        return !chainPatterns.some((pat) => name.includes(pat));
-      });
+      // Apply comprehensive filtering system
+      let places: NearbyPlace[] = res.places ?? [];
+      let filterStats = undefined;
+      
+      if (enableFiltering && places.length > 0) {
+        const filterResult = applyCoffeeShopFilters(places);
+        places = filterResult.filtered;
+        filterStats = filterResult.stats;
+        
+        // Update cumulative stats
+        totalFilterStats.original += filterStats.original;
+        totalFilterStats.afterChainFilter += filterStats.afterChainFilter;
+        totalFilterStats.afterKeywordFilter += filterStats.afterKeywordFilter;
+        totalFilterStats.afterTypeFilter += filterStats.afterTypeFilter;
+        totalFilterStats.afterQualityFilter += filterStats.afterQualityFilter;
+        totalFilterStats.final += filterStats.final;
 
-// Persist filtered results to DB for this grid point
-try {
-  const batchItems = places.map((pl) => ({
-    place: pl,
-    sourceGridId: p.id,
-    gridRadius: p.radius,
-    searchLevel: p.level,
-  }));
-  if (batchItems.length > 0) {
-    const { inserted, updated } = await upsertShopsBatch(batchItems);
-    console.info(`[grid-search] DB upsert for ${p.id}: inserted=${inserted} updated=${updated}`);
-  }
-} catch (e) {
-  console.error(`[grid-search] DB upsert failed for ${p.id}:`, e);
-}
+        // Log filtering results for this grid
+        console.log(`[grid-search] ${p.id} filtering results:`);
+        console.log(`  Original: ${filterStats.original}`);
+        console.log(`  After chain filter: ${filterStats.afterChainFilter} (${filterStats.original - filterStats.afterChainFilter} removed)`);
+        console.log(`  After keyword filter: ${filterStats.afterKeywordFilter} (${filterStats.afterChainFilter - filterStats.afterKeywordFilter} removed)`);
+        console.log(`  After type filter: ${filterStats.afterTypeFilter} (${filterStats.afterKeywordFilter - filterStats.afterTypeFilter} removed)`);
+        console.log(`  After quality filter: ${filterStats.afterQualityFilter} (${filterStats.afterTypeFilter - filterStats.afterQualityFilter} removed)`);
+        console.log(`  Final: ${filterStats.final} (${Math.round((filterStats.final/filterStats.original)*100)}% passed)`);
+      } else if (!enableFiltering) {
+        console.log(`[grid-search] ${p.id} filtering disabled - using all ${places.length} results`);
+      }
+
+      // Persist filtered results to DB for this grid point
+      try {
+        const batchItems = places.map((pl) => ({
+          place: pl,
+          sourceGridId: p.id,
+          gridRadius: p.radius,
+          searchLevel: p.level,
+        }));
+        if (batchItems.length > 0) {
+          const { inserted, updated } = await upsertShopsBatch(batchItems);
+          console.info(`[grid-search] DB upsert for ${p.id}: inserted=${inserted} updated=${updated}`);
+        }
+      } catch (e) {
+        console.error(`[grid-search] DB upsert failed for ${p.id}:`, e);
+      }
+      
       perGrid.push({
         gridId: p.id,
         lat: p.lat,
@@ -234,6 +295,7 @@ try {
         resultCount: places.length,
         apiCalls: res.apiCalls,
         places,
+        filterStats,
       });
   
       totalPlaces += places.length;
@@ -268,6 +330,7 @@ try {
     apiCalls: totalApiCalls,
     aborted,
     perGrid,
+    totalFilterStats: enableFiltering ? totalFilterStats : undefined,
   };
 
   // Emit final completion (or aborted) summary for UI consumers
@@ -284,11 +347,27 @@ try {
     console.error("[grid-search] progress emit failed:", e);
   }
 
-  console.log(
-    `Test sync complete: ${searchesRun} searches, ${totalPlaces} coffee shops found, ${totalApiCalls} API calls used${
-      aborted ? " — aborted" : ""
-    }`
-  );
+  // Enhanced completion logging with filtering statistics
+  if (enableFiltering && totalFilterStats.original > 0) {
+    const filteringEfficiency = Math.round((totalFilterStats.final / totalFilterStats.original) * 100);
+    console.log(
+      `Test sync complete: ${searchesRun} searches, ${totalPlaces} coffee shops found, ${totalApiCalls} API calls used${
+        aborted ? " — aborted" : ""
+      }`
+    );
+    console.log(`Filtering efficiency: ${totalFilterStats.original} → ${totalFilterStats.final} (${filteringEfficiency}% passed)`);
+    console.log("Filtering breakdown:");
+    console.log(`  Chain filter removed: ${totalFilterStats.original - totalFilterStats.afterChainFilter}`);
+    console.log(`  Keyword filter removed: ${totalFilterStats.afterChainFilter - totalFilterStats.afterKeywordFilter}`);
+    console.log(`  Type filter removed: ${totalFilterStats.afterKeywordFilter - totalFilterStats.afterTypeFilter}`);
+    console.log(`  Quality filter removed: ${totalFilterStats.afterTypeFilter - totalFilterStats.afterQualityFilter}`);
+  } else {
+    console.log(
+      `Test sync complete: ${searchesRun} searches, ${totalPlaces} coffee shops found, ${totalApiCalls} API calls used${
+        aborted ? " — aborted" : ""
+      }${!enableFiltering ? " (filtering disabled)" : ""}`
+    );
+  }
   
   return summary;
 }

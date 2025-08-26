@@ -136,13 +136,21 @@ export async function upsertShopsBatch(
       const rows = batch.map((it) => {
         const place = it.place ?? {};
 
-        // Prefer v1/new Places identifiers when present
-        const placeId =
+        // Prefer v1/new Places identifiers when present.
+        // Guard against receiving a resource name in `place.name` like "places/{place_id}".
+        // If we do see that form, extract the trailing id. Otherwise prefer explicit ids.
+        let placeId =
           place.place_id ??
           place.placeId ??
           place.id ??
-          place.name ??
-          synthesizePlaceId(place);
+          null;
+        if (!placeId && typeof place?.name === "string" && place.name.startsWith("places/")) {
+          // Resource-style name: "places/{place_id}" -> extract the id portion
+          const parts = place.name.split("/");
+          placeId = parts[parts.length - 1] ?? null;
+        }
+        // Fallback to name-based synthetic id only when no place identifier is available
+        placeId = placeId ?? (typeof place?.name === "string" ? place.name : null) ?? synthesizePlaceId(place);
 
         // Location extraction: support legacy and v1/new Places shapes
         const lat =
@@ -159,10 +167,15 @@ export async function upsertShopsBatch(
           place?.location?.lng ??
           null;
 
-        // Name/address mapping with v1 fields
+        // Name/address mapping with v1 fields.
+        // Prefer displayName.text when available (v1/new Places). If the legacy `place.name`
+        // contains a resource identifier like "places/...", treat it as not a human-readable name.
         const name: string | null =
-          (typeof place?.name === "string" ? place.name : place?.displayName?.text) ??
-          null;
+          typeof place?.displayName?.text === "string"
+            ? place.displayName.text
+            : typeof place?.name === "string" && !place.name.startsWith("places/")
+            ? place.name
+            : null;
 
         const formatted_address: string | null =
           place?.formatted_address ?? place?.formattedAddress ?? null;
@@ -197,15 +210,40 @@ export async function upsertShopsBatch(
           sourceGridId: it.sourceGridId,
           gridRadius: it.gridRadius,
           searchLevel: it.searchLevel,
-          raw: place,
+          // Instead of embedding the full place payload (which can be large and noisy)
+          // store a minimal raw reference that is useful for debugging/traceability.
+          raw: {
+            id: place?.id ?? place?.place_id ?? place?.placeId ?? null,
+            name:
+              typeof place?.displayName?.text === "string"
+                ? place.displayName.text
+                : typeof place?.name === "string" && !String(place.name).startsWith("places/")
+                ? place.name
+                : null,
+            // keep coordinates if available for quick lookup
+            latitude:
+              place?.geometry?.location?.lat ??
+              place?.lat ??
+              place?.location?.latitude ??
+              null,
+            longitude:
+              place?.geometry?.location?.lng ??
+              place?.lng ??
+              place?.location?.longitude ??
+              null,
+          },
         };
-
-        let opening_hours: any = place?.opening_hours ?? null;
+  
+        // Prefer canonical opening hour shapes returned by the Places v1 API.
+        // Fall back to legacy `opening_hours` if present.
+        let opening_hours: any =
+          place?.regularOpeningHours ?? place?.currentOpeningHours ?? place?.opening_hours ?? null;
+  
         if (opening_hours && typeof opening_hours === "object") {
-          // Attach under a _sync key to preserve existing shape
+          // Attach _sync metadata without embedding the full place object
           opening_hours = { ...opening_hours, _sync: syncMeta };
         } else {
-          // Store metadata under opening_hours as a best-effort JSONB holder
+          // Store minimal sync metadata under opening_hours as a best-effort JSONB holder
           opening_hours = { _sync: syncMeta };
         }
 
