@@ -12,9 +12,10 @@ type Props = {
   points: GridPoint[];
   visible: boolean;
   modeLabel?: string;
+  counts?: Record<string, number>;
 };
 
-export default function GridDebugOverlay({ points, visible, modeLabel }: Props) {
+export default function GridDebugOverlay({ points, visible, modeLabel, counts }: Props) {
   const [RL, setRL] = useState<any | null>(null); // lazy-loaded react-leaflet components
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function GridDebugOverlay({ points, visible, modeLabel }: Props) 
         Circle: (mod as any).Circle,
         CircleMarker: (mod as any).CircleMarker,
         Popup: (mod as any).Popup,
+        Tooltip: (mod as any).Tooltip,
       });
     })();
 
@@ -77,6 +79,25 @@ export default function GridDebugOverlay({ points, visible, modeLabel }: Props) 
                   <div>level: {p.level}</div>
                 </div>
               </Popup>
+
+              {/* Render per-grid count label when provided (small tooltip near marker).
+                  This is optional and only shown when `visible === true` and `counts` prop supplied. */}
+              {RL?.Tooltip && typeof counts !== "undefined" && counts[p.id] !== undefined && (
+                <RL.Tooltip direction="top" offset={[0, -10]} interactive={false}>
+                  <div
+                    style={{
+                      background: "rgba(17,24,39,0.9)",
+                      color: "#fff",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {counts[p.id]}
+                  </div>
+                </RL.Tooltip>
+              )}
             </CircleMarker>
           </React.Fragment>
         ))}
