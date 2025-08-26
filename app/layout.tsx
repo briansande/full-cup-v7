@@ -36,6 +36,7 @@ export default function RootLayout({
               <div style={{ fontWeight: 600 }}>Full Cup</div>
               <nav>
                 <Link href="/" style={{ marginRight: 12 }}>Map</Link>
+                <Link href="/random" style={{ marginRight: 12 }}>Random</Link>
                 <Link href="/new-shops">New Shops</Link>
               </nav>
             </div>

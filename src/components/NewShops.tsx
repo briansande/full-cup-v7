@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import Link from 'next/link';
+import useFilters from '@/src/hooks/useFilters';
 
 type Shop = {
   id: string;
@@ -14,15 +15,11 @@ type Shop = {
   date_added?: string | null;
 };
 
-const FILTER_OPTIONS = [
-  { label: '7 days', days: 7 },
-  { label: '14 days', days: 14 },
-  { label: '30 days', days: 30 },
-  { label: '60 days', days: 60 },
-];
-
 export default function NewShops() {
-  const [days, setDays] = useState<number>(7);
+  // Use shared filter hook (we only use the date filter here)
+  const filters = useFilters({ initialDateDays: 7 });
+  const { dateDays, setDateDays, DATE_FILTER_OPTIONS, filterError } = filters;
+
   const [shops, setShops] = useState<Shop[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +31,7 @@ export default function NewShops() {
       setLoading(true);
       setError(null);
       try {
-        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        const cutoff = new Date(Date.now() - (dateDays ?? 0) * 24 * 60 * 60 * 1000).toISOString();
 
         const res = await supabase
           .from('coffee_shops')
@@ -65,33 +62,34 @@ export default function NewShops() {
     return () => {
       mounted = false;
     };
-  }, [days]);
+  }, [dateDays]);
 
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
       <h1 style={{ margin: '0 0 12px 0' }}>Recently added coffee shops</h1>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {FILTER_OPTIONS.map((opt) => (
+        {DATE_FILTER_OPTIONS.map((opt) => (
           <button
             key={opt.days}
-            onClick={() => setDays(opt.days)}
+            onClick={() => setDateDays(opt.days)}
             style={{
               padding: '8px 12px',
               borderRadius: 6,
-              border: days === opt.days ? '2px solid #111' : '1px solid #ddd',
-              background: days === opt.days ? '#f0f0f0' : '#fff',
+              border: dateDays === opt.days ? '2px solid #111' : '1px solid #ddd',
+              background: dateDays === opt.days ? '#f0f0f0' : '#fff',
               cursor: 'pointer',
             }}
-            aria-pressed={days === opt.days}
+            aria-pressed={dateDays === opt.days}
           >
             {opt.label}
           </button>
         ))}
       </div>
+      {filterError ? <div style={{ color: 'red', marginBottom: 8 }}>Filter error: {filterError}</div> : null}
 
       <div style={{ marginBottom: 12, color: '#666' }}>
-        Showing shops added in the last {days} days — sorted newest first.
+        Showing shops added in the last {dateDays} days — sorted newest first.
       </div>
 
       {loading ? (

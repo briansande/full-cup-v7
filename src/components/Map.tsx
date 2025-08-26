@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
+import useFilters from "@/src/hooks/useFilters";
+import FilterControls from "@/src/components/FilterControls";
 import { generateGrid, GridPoint } from "@/src/lib/grid";
 import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
 
@@ -18,19 +20,11 @@ import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay
  */
 export default function Map() {
   const position: [number, number] = [29.7604, -95.3698];
-  const [dateDays, setDateDays] = useState<number | null>(null);
-  const { shops, loading } = useShops(dateDays);
+  const filters = useFilters();
+  const { shops, loading } = useShops(filters.dateDays);
   
   const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
-  // Distance / "Near Me" filter state
-  const [distanceActive, setDistanceActive] = useState<boolean>(false);
-  const [distanceRadiusMiles, setDistanceRadiusMiles] = useState<number>(3); // default to 3 miles
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'unknown' | 'prompt' | 'granted' | 'denied'>('unknown');
-  const [locationError, setLocationError] = useState<string | null>(null);
-
-  const DISTANCE_OPTIONS = [1, 3, 5, 10];
   
   // If a shop is extremely close to the user's reported location, hide the shop marker
   // so the user's circular location indicator is the only visible marker. Value is miles.
@@ -56,55 +50,28 @@ export default function Map() {
     return miles;
   }
 
-  function requestLocation() {
-    if (!("geolocation" in navigator)) {
-      setLocationError("Geolocation not supported by your browser.");
-      setLocationPermission("denied");
-      return;
-    }
-    setLocationError(null);
-    setLocationPermission("prompt");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationPermission("granted");
-      },
-      (err) => {
-        console.warn("Geolocation error:", err);
-        setLocationError(err?.message ?? "Unable to retrieve location");
-        setLocationPermission("denied");
-        setUserLocation(null);
-      },
-      { enableHighAccuracy: false, maximumAge: 60 * 1000, timeout: 10000 }
-    );
-  }
-
-  // Toggle distance filter: when enabling, request location immediately
-  function setDistanceFilterEnabled(enabled: boolean) {
-    setDistanceActive(enabled);
-    if (enabled) {
-      requestLocation();
-    } else {
-      // clear ephemeral user location when disabled
-      setUserLocation(null);
-      setLocationError(null);
-      setLocationPermission("unknown");
-    }
-  }
-  // Search and filter state
-  const [searchText, setSearchText] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = All
-  const DATE_FILTER_OPTIONS = [
-    { label: '7 days', days: 7 },
-    { label: '14 days', days: 14 },
-    { label: '30 days', days: 30 },
-    { label: '60 days', days: 60 },
-  ];
-  const STATUS_LABEL_MAP: Record<string, string> = {
-    want_to_try: "Want to Try",
-    visited: "Visited",
-    favorite: "Favorites",
-  };
+  // Location and distance filter logic moved to shared useFilters hook.
+  // Shared filter hook state & actions
+  const {
+    searchText,
+    setSearchText,
+    statusFilter,
+    setStatusFilter,
+    dateDays,
+    setDateDays,
+    DATE_FILTER_OPTIONS,
+    DISTANCE_OPTIONS,
+    distanceActive,
+    setDistanceFilterEnabled,
+    distanceRadiusMiles,
+    setDistanceRadiusMiles,
+    userLocation,
+    locationPermission,
+    locationError,
+    requestLocation,
+    clearFilters,
+    STATUS_LABEL_MAP,
+  } = filters;
 
   // Grid debug overlay state (lazy loaded)
   const [debugVisible, setDebugVisible] = useState<boolean>(false);
@@ -243,212 +210,28 @@ export default function Map() {
     return `Showing ${count} shops${distanceSuffix}`;
   })();
   
-  function clearFilters() {
-    setSearchText("");
-    setStatusFilter(null);
-    setDateDays(null);
-  }
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
       {/* Controls overlay */}
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          left: 12,
-          zIndex: 1100,
-          background: "rgba(255,255,255,0.95)",
-          padding: 12,
-          borderRadius: 8,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          aria-label="Search shops"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          placeholder="Search shops by name"
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            minWidth: 220,
-            outline: "none",
-          }}
-        />
-  
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            onClick={() => setStatusFilter(null)}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: statusFilter === null ? "1px solid #111827" : "1px solid #d1d5db",
-              background: statusFilter === null ? "#111827" : "#fff",
-              color: statusFilter === null ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setStatusFilter("want_to_try")}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: statusFilter === "want_to_try" ? "1px solid #3b82f6" : "1px solid #d1d5db",
-              background: statusFilter === "want_to_try" ? "#3b82f6" : "#fff",
-              color: statusFilter === "want_to_try" ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Want to Try
-          </button>
-          <button
-            onClick={() => setStatusFilter("visited")}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: statusFilter === "visited" ? "1px solid #10b981" : "1px solid #d1d5db",
-              background: statusFilter === "visited" ? "#10b981" : "#fff",
-              color: statusFilter === "visited" ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Visited
-          </button>
-          <button
-            onClick={() => setStatusFilter("favorite")}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: statusFilter === "favorite" ? "1px solid #ef4444" : "1px solid #d1d5db",
-              background: statusFilter === "favorite" ? "#ef4444" : "#fff",
-              color: statusFilter === "favorite" ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Favorites
-          </button>
-        </div>
-
-        {/* Date filter: Show New Shops */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
-          <div style={{ color: "#666", fontSize: 13, marginRight: 6 }}>Show New Shops</div>
-          {DATE_FILTER_OPTIONS.map((opt) => (
-            <button
-              key={opt.days}
-              onClick={() => setDateDays(opt.days)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                border: dateDays === opt.days ? "2px solid #111827" : "1px solid #d1d5db",
-                background: dateDays === opt.days ? "#111827" : "#fff",
-                color: dateDays === opt.days ? "#fff" : "#111827",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              aria-pressed={dateDays === opt.days}
-            >
-              {opt.label}
-            </button>
-          ))}
-          <button
-            onClick={() => setDateDays(null)}
-            style={{
-              padding: "6px 8px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              background: "#fff",
-              color: "#666",
-              cursor: "pointer",
-            }}
-            title="Clear date filter"
-          >
-            Clear
-          </button>
-        </div>
-
-        {/* Near Me / Distance filter (dropdown) */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
-          <div style={{ color: "#666", fontSize: 13 }}>Near Me</div>
-
-          <select
-            aria-label="Distance filter"
-            value={distanceActive ? String(distanceRadiusMiles) : "off"}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === "off") {
-                setDistanceFilterEnabled(false);
-              } else {
-                const miles = Number(val);
-                setDistanceRadiusMiles(miles);
-                setDistanceFilterEnabled(true);
-                if (!userLocation) requestLocation();
-              }
-            }}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: distanceActive ? "2px solid #111827" : "1px solid #d1d5db",
-              background: "#fff",
-              color: "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <option value="off">Off</option>
-            {DISTANCE_OPTIONS.map((m) => (
-              <option key={m} value={String(m)}>
-                {m} mi
-              </option>
-            ))}
-          </select>
-
-          {/* Permission / status message */}
-          {distanceActive && locationPermission === "denied" ? (
-            <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
-              Location denied. <button onClick={() => requestLocation()} style={{ textDecoration: "underline", background: "none", border: "none", color: "#111827", cursor: "pointer" }}>Retry</button>
-            </div>
-          ) : null}
-
-          {distanceActive && locationPermission === "prompt" ? (
-            <div style={{ color: "#666", fontSize: 13, marginLeft: 6 }}>
-              Requesting location...
-            </div>
-          ) : null}
-
-          {distanceActive && locationError ? (
-            <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
-              {locationError}
-            </div>
-          ) : null}
-        </div>
-  
-        <button
-          onClick={clearFilters}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            background: "#fff",
-            color: "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Clear Filters
-        </button>
- 
-        {showDebugToggle ? (
+      <FilterControls
+        searchText={searchText}
+        setSearchText={setSearchText}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        dateDays={dateDays}
+        setDateDays={setDateDays}
+        DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
+        distanceActive={distanceActive}
+        setDistanceFilterEnabled={setDistanceFilterEnabled}
+        DISTANCE_OPTIONS={DISTANCE_OPTIONS}
+        distanceRadiusMiles={distanceRadiusMiles}
+        setDistanceRadiusMiles={setDistanceRadiusMiles}
+        userLocation={userLocation}
+        locationPermission={locationPermission}
+        locationError={locationError}
+        requestLocation={requestLocation}
+        clearFilters={clearFilters}
+        renderDebugButton={showDebugToggle ? (
           <button
             onClick={async () => {
               const next = !debugVisible;
@@ -475,7 +258,7 @@ export default function Map() {
             {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
           </button>
         ) : null}
-      </div>
+      />
 
       {/* Filter count message */}
       <div
