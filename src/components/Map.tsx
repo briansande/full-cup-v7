@@ -22,6 +22,75 @@ export default function Map() {
   const { shops, loading } = useShops(dateDays);
   
   const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  // Distance / "Near Me" filter state
+  const [distanceActive, setDistanceActive] = useState<boolean>(false);
+  const [distanceRadiusMiles, setDistanceRadiusMiles] = useState<number>(3); // default to 3 miles
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermission, setLocationPermission] = useState<'unknown' | 'prompt' | 'granted' | 'denied'>('unknown');
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const DISTANCE_OPTIONS = [1, 3, 5, 10];
+  
+  // If a shop is extremely close to the user's reported location, hide the shop marker
+  // so the user's circular location indicator is the only visible marker. Value is miles.
+  // Increased threshold to 0.2 miles (~320 meters) to avoid duplicate markers showing.
+  const USER_HIDE_THRESHOLD_MILES = 0.2;
+
+  // Haversine formula to compute distance in miles between two lat/lng pairs
+  function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371e3; // metres
+    const φ1 = toRad(lat1);
+    const φ2 = toRad(lat2);
+    const Δφ = toRad(lat2 - lat1);
+    const Δλ = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const meters = R * c;
+    const miles = meters / 1609.344;
+    return miles;
+  }
+
+  function requestLocation() {
+    if (!("geolocation" in navigator)) {
+      setLocationError("Geolocation not supported by your browser.");
+      setLocationPermission("denied");
+      return;
+    }
+    setLocationError(null);
+    setLocationPermission("prompt");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationPermission("granted");
+      },
+      (err) => {
+        console.warn("Geolocation error:", err);
+        setLocationError(err?.message ?? "Unable to retrieve location");
+        setLocationPermission("denied");
+        setUserLocation(null);
+      },
+      { enableHighAccuracy: false, maximumAge: 60 * 1000, timeout: 10000 }
+    );
+  }
+
+  // Toggle distance filter: when enabling, request location immediately
+  function setDistanceFilterEnabled(enabled: boolean) {
+    setDistanceActive(enabled);
+    if (enabled) {
+      requestLocation();
+    } else {
+      // clear ephemeral user location when disabled
+      setUserLocation(null);
+      setLocationError(null);
+      setLocationPermission("unknown");
+    }
+  }
   // Search and filter state
   const [searchText, setSearchText] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = All
@@ -119,6 +188,15 @@ export default function Map() {
   };
   
   const shadowUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
+
+  // Icon for user's current location — circular div similar to Google Maps
+  const userIcon = new L.DivIcon({
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:#1e88e5;box-shadow:0 0 8px rgba(30,136,229,0.6);border:3px solid rgba(255,255,255,0.95)"></div>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -11],
+  });
   
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredShops = shops && shops.length > 0
@@ -128,6 +206,22 @@ export default function Map() {
         if (statusFilter) {
           if ((s.status ?? "default") !== statusFilter) return false;
         }
+
+        // If distance filter is enabled and we have a user location, compute distance and filter accordingly.
+        if (distanceActive) {
+          if (!userLocation) {
+            // If userLocation not available yet, exclude until location is resolved.
+            return false;
+          }
+          const d = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
+          // attach ephemeral distance for display in popups
+          (s as any)._distanceMiles = d;
+          if (typeof distanceRadiusMiles === "number" && d > distanceRadiusMiles) return false;
+        } else {
+          // ensure no stale distance is left
+          (s as any)._distanceMiles = null;
+        }
+
         if (!normalizedSearch) return true;
         return (s.name ?? "").toLowerCase().includes(normalizedSearch);
       })
@@ -136,16 +230,17 @@ export default function Map() {
   const filterCountMessage = (() => {
     const count = filteredShops ? filteredShops.length : 0;
     const statusLabel = statusFilter ? (STATUS_LABEL_MAP[statusFilter] ?? statusFilter) : null;
+    const distanceSuffix = distanceActive ? ` within ${distanceRadiusMiles} miles` : "";
     if (dateDays) {
       if (statusLabel) {
-        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days`;
+        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days${distanceSuffix}`;
       }
-      return `Showing ${count} shops added in last ${dateDays} days`;
+      return `Showing ${count} shops added in last ${dateDays} days${distanceSuffix}`;
     }
     if (statusLabel) {
-      return `Showing ${count} ${statusLabel.toLowerCase()} shops`;
+      return `Showing ${count} ${statusLabel.toLowerCase()} shops${distanceSuffix}`;
     }
-    return `Showing ${count} shops`;
+    return `Showing ${count} shops${distanceSuffix}`;
   })();
   
   function clearFilters() {
@@ -281,6 +376,62 @@ export default function Map() {
             Clear
           </button>
         </div>
+
+        {/* Near Me / Distance filter (dropdown) */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
+          <div style={{ color: "#666", fontSize: 13 }}>Near Me</div>
+
+          <select
+            aria-label="Distance filter"
+            value={distanceActive ? String(distanceRadiusMiles) : "off"}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "off") {
+                setDistanceFilterEnabled(false);
+              } else {
+                const miles = Number(val);
+                setDistanceRadiusMiles(miles);
+                setDistanceFilterEnabled(true);
+                if (!userLocation) requestLocation();
+              }
+            }}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 6,
+              border: distanceActive ? "2px solid #111827" : "1px solid #d1d5db",
+              background: "#fff",
+              color: "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <option value="off">Off</option>
+            {DISTANCE_OPTIONS.map((m) => (
+              <option key={m} value={String(m)}>
+                {m} mi
+              </option>
+            ))}
+          </select>
+
+          {/* Permission / status message */}
+          {distanceActive && locationPermission === "denied" ? (
+            <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
+              Location denied. <button onClick={() => requestLocation()} style={{ textDecoration: "underline", background: "none", border: "none", color: "#111827", cursor: "pointer" }}>Retry</button>
+            </div>
+          ) : null}
+
+          {distanceActive && locationPermission === "prompt" ? (
+            <div style={{ color: "#666", fontSize: 13, marginLeft: 6 }}>
+              Requesting location...
+            </div>
+          ) : null}
+
+          {distanceActive && locationError ? (
+            <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
+              {locationError}
+            </div>
+          ) : null}
+        </div>
   
         <button
           onClick={clearFilters}
@@ -375,6 +526,21 @@ export default function Map() {
           ? filteredShops.map((s: any) => {
               if (s.latitude == null || s.longitude == null) return null;
               const pos: [number, number] = [s.latitude, s.longitude];
+
+              // If a shop is effectively at the user's location, skip rendering the shop marker
+              // so we don't show a duplicate marker beneath the user marker.
+              if (userLocation) {
+                try {
+                  // If exact coordinates match, hide the shop marker immediately.
+                  if (s.latitude === userLocation.lat && s.longitude === userLocation.lng) return null;
+
+                  const dToUser = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
+                  // hide shops extremely close to user's marker (threshold in USER_HIDE_THRESHOLD_MILES)
+                  if (dToUser < USER_HIDE_THRESHOLD_MILES) return null;
+                } catch {
+                  // ignore distance computation errors and continue rendering
+                }
+              }
   
               // Pick correct icon for this shop's status
               const statusKey = s.status ?? "default";
@@ -394,6 +560,13 @@ export default function Map() {
                   <Popup>
                     <div style={{ minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
+  
+                      {distanceActive && (s as any)._distanceMiles != null ? (
+                        <div style={{ marginTop: 6 }}>
+                          Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
+                        </div>
+                      ) : null}
+  
                       {s.avgRating != null ? (
                         <div style={{ marginTop: 6 }}>
                           Average rating: <strong>{Number(s.avgRating).toFixed(1)} ★</strong>
@@ -408,6 +581,20 @@ export default function Map() {
               );
             })
           : null}
+
+        {/* User location marker (rendered above other markers) */}
+        {userLocation ? (
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} zIndexOffset={1000}>
+            <Popup>
+              <div style={{ minWidth: 120 }}>
+                <div style={{ fontWeight: 600 }}>You are here</div>
+                <div style={{ fontSize: 13, color: '#666' }}>
+                  {locationPermission === 'granted' ? 'Location shared' : 'Location'}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ) : null}
 
         {debugPoints ? (
           <GridDebugOverlay
