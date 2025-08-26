@@ -59,7 +59,7 @@ const HOUSTON_BOUNDARIES = {
 
 /* Constants / conversion assumptions */
 const LAT_DEGREES_PER_KM = 0.009; // approximate for Houston latitude
-const DEFAULT_PRIMARY_RADIUS_M = 1000; // 2000 meters for primary grid points
+const DEFAULT_PRIMARY_RADIUS_M = 1500; // 2000 meters for primary grid points
 
 /**
  * Helper: convert km offsets to degree offsets (lat, lon) at a reference latitude.
@@ -85,8 +85,8 @@ function kmOffsetToDeg(latRef: number, latOffsetKm: number, lngOffsetKm: number)
 export function generateGrid(mode: Mode): GridPoint[] {
   if (mode === 'test') {
     // Test mode: 2 cols x 3 rows centered on Downtown Houston
-    const cols = 1;
-    const rows = 1;
+    const cols = 2;
+    const rows = 2;
     const spacingKm = 2; // ~2 km spacing requested
     const centerLat = TEST_BOUNDARIES.centerLat;
     const centerLng = TEST_BOUNDARIES.centerLng;

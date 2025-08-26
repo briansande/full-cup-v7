@@ -20,6 +20,7 @@ type Props = {
 };
 
 export default function GridDebugOverlay({ points, visible, modeLabel, counts, duplicates, dbStatus, adminMode = false }: Props) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [RL, setRL] = useState<any | null>(null); // lazy-loaded react-leaflet components
 
   useEffect(() => {
@@ -29,6 +30,8 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
     (async () => {
       const mod = await import("react-leaflet");
       if (!mounted) return;
+      // The imported module types are dynamic at runtime; suppress explicit-any linting here.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setRL({
         Circle: (mod as any).Circle,
         CircleMarker: (mod as any).CircleMarker,
@@ -48,6 +51,8 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
   const [apiCalls, setApiCalls] = useState<number>(0);
   const [lastEvent, setLastEvent] = useState<ProgressEvent | null>(null);
   const [recentEvents, setRecentEvents] = useState<ProgressEvent[]>([]);
+  // Accumulated subdivision geometry emitted during the run (all subdivisions)
+  const [subdivisionPoints, setSubdivisionPoints] = useState<GridPoint[]>([]);
   
   // Subscribe to in-process progress tracker (client-only).
   // Progress tracker replays recent events synchronously on subscribe, so state will initialize.
@@ -59,6 +64,8 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
       // Update aggregates conservatively based on events seen
       if (ev.type === "start") {
         setTotalEstimated(ev.totalEstimatedSearches);
+        // clear subdivision history on new run
+        setSubdivisionPoints([]);
       } else if (ev.type === "search-complete") {
         setProcessedCount((c) => c + 1);
         setApiCalls((a) => a + (ev.apiCalls ?? 0));
@@ -71,6 +78,11 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
       } else if (ev.type === "subdivision-created") {
         // Adjust totalEstimated if we had an estimate — add children to live estimate
         setTotalEstimated((t) => (typeof t === "number" ? t + ev.children.length : t));
+        // If the runner provided full child geometry (childPoints), append it to the subdivision history.
+        const evWithChildren = ev as ProgressEvent & { childPoints?: GridPoint[] };
+        if (evWithChildren.childPoints && Array.isArray(evWithChildren.childPoints)) {
+          setSubdivisionPoints((prev) => [...prev, ...evWithChildren.childPoints!]);
+        }
       }
   
       // maintain last event and recent events (cap 5)
@@ -82,6 +94,31 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
     };
   
     const unsubscribe = progress.subscribe(handler);
+
+    // If the overlay is enabled after a server-run, fetch the server snapshot so we can
+    // display subdivisions emitted by the server-side runner. This allows toggling the
+    // overlay on after the sync completes and still seeing last subdivision geometry.
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/sync");
+        if (!res.ok) return;
+        const json = await res.json();
+        const events: unknown[] = json?.snapshot?.events ?? [];
+        const agg: GridPoint[] = [];
+        for (let i = 0; i < events.length; i++) {
+          const ev: any = events[i];
+          if (ev && ev.type === "subdivision-created" && ev.childPoints && Array.isArray(ev.childPoints)) {
+            agg.push(...(ev.childPoints as GridPoint[]));
+          }
+        }
+        if (agg.length > 0) setSubdivisionPoints(agg);
+      } catch (err) {
+        // Non-fatal: if the server snapshot isn't available or the call fails, continue without it.
+        // eslint-disable-next-line no-console
+        console.debug("[GridDebugOverlay] server snapshot fetch failed:", err);
+      }
+    })();
+
     return () => {
       unsubscribe();
     };
@@ -166,7 +203,7 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
                 ? `abort — ${ev.reason}`
                 : ev.type === "complete"
                 ? `complete — ${ev.totalAreasSearched}`
-                : ev.type}
+                : JSON.stringify(ev)}
             </div>
           ))}
         </div>
@@ -327,6 +364,40 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
           </React.Fragment>
         ))}
  
+      {/* Subdivisions emitted during the last run (aggregated) — shown on top when available */}
+      {subdivisionPoints.length > 0 &&
+        subdivisionPoints.map((p, idx) => (
+          <React.Fragment key={`sub-${p.id}-${idx}`}>
+            <Circle
+              center={[p.lat, p.lng]}
+              radius={p.radius}
+              pathOptions={{
+                color: "#b45309", // darker orange border
+                fillColor: "#fef3c7", // pale yellow fill
+                fillOpacity: 0.18,
+                weight: 1,
+                dashArray: "4 3",
+              }}
+              interactive={false}
+            />
+            <CircleMarker
+              center={[p.lat, p.lng]}
+              radius={6}
+              pathOptions={{ color: "#b45309", fillColor: "#fb923c", fillOpacity: 1 }}
+            >
+              <Popup>
+                <div style={{ minWidth: 220 }}>
+                  <div style={{ fontWeight: 700 }}>Subdivision</div>
+                  <div style={{ marginTop: 6 }}>id: {p.id}</div>
+                  <div>lat: {p.lat.toFixed(6)}, lng: {p.lng.toFixed(6)}</div>
+                  <div>radius: {p.radius}</div>
+                  <div>level: {p.level}</div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          </React.Fragment>
+        ))}
+
       {/* Subdivision points (level > 0) - distinct styling (orange/red) */}
       {points
         .filter((p) => p.level > 0)
@@ -344,7 +415,7 @@ export default function GridDebugOverlay({ points, visible, modeLabel, counts, d
               }}
               interactive={false}
             />
- 
+
             {/* Small visible marker (circle marker) with popup - orange */}
             <CircleMarker
               center={[p.lat, p.lng]}

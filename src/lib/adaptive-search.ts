@@ -136,7 +136,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
   const {
     maxApiCalls = 50,
     rateLimitMs = 1000,
-    maxDepth = 4,
+    maxDepth = 8,
     debugLog = true,
     abortSignal,
     enableFiltering = true,
@@ -257,7 +257,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     // Count of deduplicated places returned by the API before applying our keyword/type/quality filters.
     // Declared in outer scope so subdivision decision logic (outside the try/catch) can reference it.
     let preFilterCount = 0;
-    
+
     try {
       nearbyRes = await nearbySearchWithPagination({
         lat: task.lat,
@@ -282,7 +282,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
         });
         if (!dedupe.has(key)) dedupe.set(key, p);
       }
-      
+
       const deduplicatedPlaces = Array.from(dedupe.values());
       // Set pre-filter count (deduplicated) so we can decide to subdivide based on
       // how many unique items the API returned before filtering.
@@ -293,7 +293,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
         const filterResult = applyCoffeeShopFilters(deduplicatedPlaces);
         taskPlaces = filterResult.filtered;
         filterStats = filterResult.stats;
-        
+
         // Update cumulative stats
         totalFilterStats.original += filterStats.original;
         totalFilterStats.afterChainFilter += filterStats.afterChainFilter;
@@ -309,7 +309,7 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
           console.log(`  After keyword filter: ${filterStats.afterKeywordFilter} (${filterStats.afterChainFilter - filterStats.afterKeywordFilter} removed)`);
           console.log(`  After type filter: ${filterStats.afterTypeFilter} (${filterStats.afterKeywordFilter - filterStats.afterTypeFilter} removed)`);
           console.log(`  After quality filter: ${filterStats.afterQualityFilter} (${filterStats.afterTypeFilter - filterStats.afterQualityFilter} removed)`);
-          console.log(`  Final: ${filterStats.final} (${Math.round((filterStats.final/filterStats.original)*100)}% passed)`);
+          console.log(`  Final: ${filterStats.final} (${Math.round((filterStats.final / filterStats.original) * 100)}% passed)`);
         }
       } else {
         taskPlaces = deduplicatedPlaces;
@@ -380,7 +380,24 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     if ((hitLimit || reachedBound) && task.level < maxDepth) {
       // Generate 4 subdivisions using helper
       try {
-        const subs = generateSubdivisionPoints(task, { offsetKm: 1, radius: 1000 });
+        // Compute child radius (meters) and offset (km) dynamically based on the parent radius
+        // so subdivisions shrink with depth instead of using fixed 1km / 1000m values.
+        // - childRadius: half the parent radius, floored and clamped to a sensible minimum
+        // - offsetKm: half of the parent radius (in km) with a small overlap factor to avoid gaps
+        const MIN_CHILD_RADIUS_M = 100; // do not subdivide smaller than this
+        const childRadius = Math.max(MIN_CHILD_RADIUS_M, Math.floor(task.radius / 2));
+        const overlapFactor = 0.75; // slight overlap to reduce gaps between child searches
+        const offsetKm = (task.radius / 1000) * 0.5 * overlapFactor;
+
+        if (debugLog) {
+          console.log(
+            `[adaptive-search] Subdividing ${task.id} (level ${task.level}) -> childRadius=${childRadius}m offsetKm=${offsetKm.toFixed(
+              3
+            )}km`
+          );
+        }
+
+        const subs = generateSubdivisionPoints(task, { offsetKm, radius: childRadius });
         for (const s of subs) {
           // Attach parentId and push to queue for future processing
           (s as GridPoint & { parentId?: string | null }).parentId = task.id;
@@ -388,12 +405,18 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
         }
         thisResult.subdivided = true;
         subdivisionsCount += subs.length;
-        console.log(`AdaptiveSearch: created 4 subdivisions for ${task.id} at level ${task.level + 1}`);
+        console.log(`AdaptiveSearch: created ${subs.length} subdivisions for ${task.id} at level ${task.level + 1}`);
 
         // Notify progress subscribers that subdivisions were created (children IDs available)
         try {
           const childIds = subs.map((c) => c.id);
-          progress.emit({ type: "subdivision-created", parentId: task.id, children: childIds });
+          // Include full child GridPoint objects so UI consumers (map overlay) can render subdivision geometry immediately.
+          progress.emit({
+            type: "subdivision-created",
+            parentId: task.id,
+            children: childIds,
+            childPoints: subs,
+          });
         } catch (e) {
           console.error("[adaptive-search] progress emit failed:", e);
         }
@@ -406,11 +429,10 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     }
 
     // Log the processed task message with filtering information
-    const filteringInfo = enableFiltering && filterStats ? 
+    const filteringInfo = enableFiltering && filterStats ?
       ` — filtered ${filterStats.original} → ${filterStats.final}` : "";
     console.log(
-      `AdaptiveSearch: processed ${task.id} (level ${task.level}) — ${resultCount} places — apiCalls=${apiCallsForThisTask}${filteringInfo}${
-        thisResult.subdivided ? " — subdivided" : ""
+      `AdaptiveSearch: processed ${task.id} (level ${task.level}) — ${resultCount} places — apiCalls=${apiCallsForThisTask}${filteringInfo}${thisResult.subdivided ? " — subdivided" : ""
       }`
     );
 
@@ -484,13 +506,12 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
   } catch (e) {
     console.error("[adaptive-search] progress emit failed:", e);
   }
-  
+
   // Enhanced completion logging with filtering statistics
   if (enableFiltering && totalFilterStats.original > 0) {
     const filteringEfficiency = Math.round((totalFilterStats.final / totalFilterStats.original) * 100);
     console.log(
-      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
-        summary.aborted ? " — aborted" : ""
+      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${summary.aborted ? " — aborted" : ""
       }`
     );
     console.log(`Filtering efficiency: ${totalFilterStats.original} → ${totalFilterStats.final} (${filteringEfficiency}% passed)`);
@@ -501,12 +522,11 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     console.log(`  Quality filter removed: ${totalFilterStats.afterTypeFilter - totalFilterStats.afterQualityFilter}`);
   } else {
     console.log(
-      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${
-        summary.aborted ? " — aborted" : ""
+      `Adaptive sync complete: ${summary.totalAreasSearched} areas searched, ${summary.totalPlaces} places found, ${summary.apiCalls} API calls used${summary.aborted ? " — aborted" : ""
       }${!enableFiltering ? " (filtering disabled)" : ""}`
     );
   }
-  
+
   return summary;
 }
 

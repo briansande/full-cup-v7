@@ -21,6 +21,8 @@
  *   useEffect that runs only when window is defined).
  */
 
+import type { GridPoint } from "./grid";
+
 export type ProgressEvent =
   | { type: "start"; totalEstimatedSearches?: number; mode?: "test" | "production" }
   | { type: "search-start"; id: string; level: number; lat: number; lng: number; radius: number }
@@ -32,7 +34,9 @@ export type ProgressEvent =
       apiCalls: number;
       subdivided?: boolean;
     }
-  | { type: "subdivision-created"; parentId: string; children: string[] }
+  // subdivision-created includes both child IDs (strings) and an optional array of full child GridPoint objects
+  // so UI consumers can render child geometry without requiring additional round-trips.
+  | { type: "subdivision-created"; parentId: string; children: string[]; childPoints?: GridPoint[] }
   | { type: "abort"; reason: string }
   | {
       type: "complete";
