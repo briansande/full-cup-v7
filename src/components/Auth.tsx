@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "../lib/supabase";
 
 /**
@@ -75,7 +76,12 @@ export default function Auth() {
     <div>
       {user ? (
         <div>
-          <div>Signed in as {user.email}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div>Signed in as {user.email}</div>
+            <Link href="/profile" className="px-2 py-1 border rounded text-sm">
+              Profile
+            </Link>
+          </div>
           <button onClick={handleSignOut} className="mt-2 px-3 py-1 border rounded">
             Sign out
           </button>

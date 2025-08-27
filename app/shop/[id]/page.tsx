@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { supabase } from '@/src/lib/supabase';
 import ShopStatus from '@/src/components/ShopStatus';
 import ShopReviews from '@/src/components/ShopReviews';
+import DrinkReviews from '@/src/components/DrinkReviews';
 
 type Props = { params: { id: string } };
 
@@ -28,6 +29,20 @@ export default async function Page({ params }: Props) {
     }
 
     const shop = res.data as any;
+
+    // Fetch drink review count for this shop (simple server-side count)
+    let drinkReviewCount = 0;
+    try {
+      const countRes = await supabase
+        .from('drink_reviews')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', id);
+      if (!countRes.error) {
+        drinkReviewCount = countRes.count ?? 0;
+      }
+    } catch {
+      // ignore any failures fetching count
+    }
 
     // Build a friendly hours display when possible
     let hoursElement: React.ReactNode = null;
@@ -123,6 +138,11 @@ export default async function Page({ params }: Props) {
         {/* Simple reviews (rating + optional text) */}
         <div style={{ marginTop: 18 }}>
           <ShopReviews shopId={String(shop.id)} />
+        </div>
+
+        {/* Drink reviews (separate from shop reviews) */}
+        <div style={{ marginTop: 18 }}>
+          <DrinkReviews shopId={String(shop.id)} />
         </div>
       </div>
     );
