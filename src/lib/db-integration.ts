@@ -37,6 +37,7 @@
  */
 
 import { supabase } from "./supabase";
+import { getPhotoUrl } from "./google-places";
 
 /**
  * Options for upsertShopsBatch
@@ -204,7 +205,17 @@ export async function upsertShopsBatch(
         const photos = Array.isArray(place?.photos)
           ? place.photos.map((p: any) => p?.photo_reference ?? p?.name ?? p)
           : null;
-
+  
+        // Derive main photo reference and attribution where possible (supports both legacy and v1 shapes)
+        const mainPhoto =
+          Array.isArray(place?.photos) && place.photos.length > 0 ? place.photos[0] : null;
+        const google_photo_reference = mainPhoto?.name ?? mainPhoto?.photo_reference ?? null;
+        const main_photo_url = google_photo_reference ? getPhotoUrl(google_photo_reference) : null;
+        const photo_attribution =
+          mainPhoto && Array.isArray(mainPhoto.authorAttributions) && mainPhoto.authorAttributions.length > 0
+            ? JSON.stringify(mainPhoto.authorAttributions)
+            : null;
+  
         // Best-effort opening_hours metadata attachment
         const syncMeta = {
           sourceGridId: it.sourceGridId,
@@ -246,7 +257,23 @@ export async function upsertShopsBatch(
           // Store minimal sync metadata under opening_hours as a best-effort JSONB holder
           opening_hours = { _sync: syncMeta };
         }
-
+  
+        // Debug: log photo values computed for this place so we can diagnose why
+        // photo columns may be empty after a test sync.
+        try {
+          console.info("[upsertShopsBatch] place debug:", {
+            placeId,
+            photos: Array.isArray(place?.photos) ? place.photos : place?.photos ?? null,
+            google_photo_reference,
+            main_photo_url,
+            photo_attribution,
+          });
+        } catch (e) {
+          // swallow logging errors to avoid failing the upsert flow
+          // eslint-disable-next-line no-console
+          console.info("[upsertShopsBatch] debug log failed:", e);
+        }
+  
         return {
           google_place_id: placeId,
           name,
@@ -260,6 +287,10 @@ export async function upsertShopsBatch(
           price_level,
           opening_hours,
           photos,
+          // Photo-related columns
+          google_photo_reference,
+          main_photo_url,
+          photo_attribution,
           types,
           status: "active",
           last_updated: new Date().toISOString(),

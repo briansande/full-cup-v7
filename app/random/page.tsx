@@ -193,6 +193,9 @@ export default function Page() {
     setDistanceFilterEnabled,
     requestLocation,
     clearFilters,
+    // tag filter state
+    selectedTags,
+    setSelectedTags,
     getDBFilterParams,
   } = useFilters();
 
@@ -246,6 +249,12 @@ export default function Page() {
 
   const filteredShops = shopList.filter((s) => {
     if (!s) return false;
+
+    // Tag filter (AND logic): require shop to have all selected tags
+    if (selectedTags && Array.isArray(selectedTags) && selectedTags.length > 0) {
+      const shopTagIds: string[] = Array.isArray((s as any).tagIds) ? (s as any).tagIds.map(String) : [];
+      if (!selectedTags.every((t) => shopTagIds.includes(String(t)))) return false;
+    }
 
     // Status filter
     if (statusFilter && s.status !== statusFilter) return false;
@@ -327,6 +336,9 @@ export default function Page() {
             locationPermission={locationPermission}
             locationError={locationError}
             requestLocation={requestLocation}
+            // Tag filter props
+            selectedTags={selectedTags}
+            setSelectedTags={setSelectedTags}
             clearFilters={() => {
               clearFilters();
               setSelectedId(null);

@@ -5,9 +5,15 @@ import { supabase } from "@/src/lib/supabase";
 type Review = {
   id: string;
   user_id: string;
-  rating: number;
+  rating: number | null;
   review_text: string | null;
   created_at: string | null;
+  coffee_quality_rating?: number | null;
+  atmosphere_rating?: number | null;
+  noise_level_rating?: number | null;
+  wifi_quality_rating?: number | null;
+  work_friendliness_rating?: number | null;
+  service_rating?: number | null;
 };
 
 type Props = {
@@ -20,7 +26,13 @@ export default function ShopReviews({ shopId }: Props) {
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [rating, setRating] = useState<number>(5);
+  // Per-criterion rating state
+  const [coffeeQuality, setCoffeeQuality] = useState<number>(5); // required
+  const [atmosphere, setAtmosphere] = useState<number | null>(null);
+  const [noiseLevel, setNoiseLevel] = useState<number | null>(null);
+  const [wifiQuality, setWifiQuality] = useState<number | "na" | null>("na"); // "na" = N/A
+  const [workFriendliness, setWorkFriendliness] = useState<number | null>(null);
+  const [service, setService] = useState<number | null>(null);
   const [text, setText] = useState<string>("");
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -37,10 +49,10 @@ export default function ShopReviews({ shopId }: Props) {
         if (!mounted) return;
         setUserId(user?.id ?? null);
 
-        // Fetch reviews for this shop
+        // Fetch reviews for this shop (include all criteria)
         const rev = await supabase
           .from("shop_reviews")
-          .select("id,user_id,rating,review_text,created_at")
+          .select("id,user_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
           .eq("shop_id", shopId)
           .order("created_at", { ascending: false });
 
@@ -56,15 +68,22 @@ export default function ShopReviews({ shopId }: Props) {
         if (user) {
           const mine = await supabase
             .from("shop_reviews")
-            .select("rating,review_text")
+            .select("rating,review_text,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
             .eq("shop_id", shopId)
             .eq("user_id", user.id)
             .limit(1)
             .single();
           if (!mounted) return;
           if (!mine.error && mine.data) {
-            setRating(mine.data.rating ?? 5);
-            setText(mine.data.review_text ?? "");
+            // Populate per-criterion fields, with sensible fallbacks
+            const md: any = mine.data;
+            setCoffeeQuality(md.coffee_quality_rating ?? (md.rating != null ? Math.round(Number(md.rating)) : 5));
+            setAtmosphere(md.atmosphere_rating ?? null);
+            setNoiseLevel(md.noise_level_rating ?? null);
+            setWifiQuality(md.wifi_quality_rating == null ? "na" : md.wifi_quality_rating);
+            setWorkFriendliness(md.work_friendliness_rating ?? null);
+            setService(md.service_rating ?? null);
+            setText(md.review_text ?? "");
           }
         }
       } catch (err) {
@@ -102,7 +121,13 @@ export default function ShopReviews({ shopId }: Props) {
         {
           user_id: user.id,
           shop_id: shopId,
-          rating,
+          // Write per-criterion ratings; overall `rating` is computed by DB trigger
+          coffee_quality_rating: coffeeQuality,
+          atmosphere_rating: atmosphere ?? null,
+          noise_level_rating: noiseLevel ?? null,
+          wifi_quality_rating: wifiQuality === "na" ? null : (wifiQuality as number | null),
+          work_friendliness_rating: workFriendliness ?? null,
+          service_rating: service ?? null,
           review_text: text || null,
           updated_at: new Date().toISOString(),
         },
@@ -111,10 +136,10 @@ export default function ShopReviews({ shopId }: Props) {
 
       if (up.error) throw up.error;
 
-      // Re-fetch reviews
+      // Re-fetch reviews (include criteria)
       const rev = await supabase
         .from("shop_reviews")
-        .select("id,user_id,rating,review_text,created_at")
+        .select("id,user_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
 
@@ -146,16 +171,16 @@ export default function ShopReviews({ shopId }: Props) {
       ) : null}
 
       <form onSubmit={(e) => handleSubmit(e)} style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-          <label style={{ fontWeight: 600 }}>Your rating</label>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Coffee quality (required)</label>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => {
-              const selected = n === rating;
+              const selected = n === coffeeQuality;
               return (
                 <button
-                  key={n}
+                  key={`coffee-${n}`}
                   type="button"
-                  onClick={() => setRating(n)}
+                  onClick={() => setCoffeeQuality(n)}
                   style={{
                     padding: "6px 8px",
                     borderRadius: 6,
@@ -167,6 +192,146 @@ export default function ShopReviews({ shopId }: Props) {
                   }}
                 >
                   {n} ★
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Atmosphere (optional)</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+            {[null,1,2,3,4,5].map((n) => {
+              const selected = n === atmosphere;
+              return (
+                <button
+                  key={`atmos-${String(n)}`}
+                  type="button"
+                  onClick={() => setAtmosphere(n as number | null)}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: selected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selected ? "#111827" : "#fff",
+                    color: selected ? "#fff" : "#111827",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {n === null ? "N/A" : `${n} ★`}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Noise level (1=quiet, 5=loud)</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+            {[null,1,2,3,4,5].map((n) => {
+              const selected = n === noiseLevel;
+              return (
+                <button
+                  key={`noise-${String(n)}`}
+                  type="button"
+                  onClick={() => setNoiseLevel(n as number | null)}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: selected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selected ? "#111827" : "#fff",
+                    color: selected ? "#fff" : "#111827",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {n === null ? "N/A" : `${n}`}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>WiFi quality (optional)</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+            <button
+              type="button"
+              onClick={() => setWifiQuality("na")}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: wifiQuality === "na" ? "1px solid #111827" : "1px solid #d1d5db",
+                background: wifiQuality === "na" ? "#111827" : "#fff",
+                color: wifiQuality === "na" ? "#fff" : "#111827",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              N/A
+            </button>
+            {[1,2,3,4,5].map((n) => {
+              const selected = wifiQuality === n;
+              return (
+                <button
+                  key={`wifi-${n}`}
+                  type="button"
+                  onClick={() => setWifiQuality(n)}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: selected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selected ? "#111827" : "#fff",
+                    color: selected ? "#fff" : "#111827",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {n} ★
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Work environment (optional)</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+            {[null,1,2,3,4,5].map((n) => {
+              const selected = n === workFriendliness;
+              return (
+                <button
+                  key={`work-${String(n)}`}
+                  type="button"
+                  onClick={() => setWorkFriendliness(n as number | null)}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: selected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selected ? "#111827" : "#fff",
+                    color: selected ? "#fff" : "#111827",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {n === null ? "N/A" : `${n} ★`}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Service (optional)</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {[null,1,2,3,4,5].map((n) => {
+              const selected = n === service;
+              return (
+                <button
+                  key={`service-${String(n)}`}
+                  type="button"
+                  onClick={() => setService(n as number | null)}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: selected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selected ? "#111827" : "#fff",
+                    color: selected ? "#fff" : "#111827",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {n === null ? "N/A" : `${n} ★`}
                 </button>
               );
             })}
@@ -210,7 +375,13 @@ export default function ShopReviews({ shopId }: Props) {
           <button
             type="button"
             onClick={() => {
-              setRating(5);
+              // Reset per-criterion state to defaults
+              setCoffeeQuality(5);
+              setAtmosphere(null);
+              setNoiseLevel(null);
+              setWifiQuality("na");
+              setWorkFriendliness(null);
+              setService(null);
               setText("");
             }}
             disabled={saving}
@@ -242,9 +413,19 @@ export default function ShopReviews({ shopId }: Props) {
               <div key={r.id} style={{ padding: 12, background: "#fafafa", borderRadius: 8, border: "1px solid #eee" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontWeight: 700 }}>{r.user_id === userId ? "You" : `${r.user_id.substring(0, 6)}...`}</div>
-                  <div style={{ fontWeight: 700 }}>{r.rating} ★</div>
+                  <div style={{ fontWeight: 700 }}>{r.rating != null ? `${r.rating} ★` : (r.coffee_quality_rating != null ? `${r.coffee_quality_rating} ★` : "")}</div>
                 </div>
                 {r.review_text ? <div style={{ marginTop: 8 }}>{r.review_text}</div> : null}
+
+                <div style={{ marginTop: 8, color: "#444", fontSize: 13 }}>
+                  {r.coffee_quality_rating != null ? <div>Coffee: <strong>{r.coffee_quality_rating} ★</strong></div> : null}
+                  {r.atmosphere_rating != null ? <div>Atmosphere: <strong>{r.atmosphere_rating} ★</strong></div> : null}
+                  {r.noise_level_rating != null ? <div>Noise level: <strong>{r.noise_level_rating}</strong></div> : null}
+                  {r.wifi_quality_rating != null ? <div>WiFi: <strong>{r.wifi_quality_rating} ★</strong></div> : null}
+                  {r.work_friendliness_rating != null ? <div>Work friendly: <strong>{r.work_friendliness_rating} ★</strong></div> : null}
+                  {r.service_rating != null ? <div>Service: <strong>{r.service_rating} ★</strong></div> : null}
+                </div>
+
                 {r.created_at ? (
                   <div style={{ marginTop: 8, color: "#666", fontSize: 12 }}>
                     {new Date(r.created_at).toLocaleString()}

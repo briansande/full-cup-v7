@@ -25,6 +25,8 @@ type UseFiltersOptions = {
   initialDistanceRadiusMiles?: number;
   initialDistanceActive?: boolean;
   initialSearchText?: string;
+  // initial selected tags (array of tag ids)
+  initialSelectedTags?: string[];
 };
 
 type DBFilterParams = {
@@ -32,6 +34,7 @@ type DBFilterParams = {
   status?: string | null;
   distance?: { lat: number; lng: number; radiusMiles: number } | null;
   searchText?: string | null;
+  tags?: string[] | null;
 };
 
 /**
@@ -48,11 +51,15 @@ export default function useFilters(opts?: UseFiltersOptions) {
     initialDistanceRadiusMiles = 3,
     initialDistanceActive = false,
     initialSearchText = '',
+    initialSelectedTags = [],
   } = opts || {};
 
   const [searchText, setSearchText] = useState<string>(initialSearchText);
   const [statusFilter, setStatusFilterRaw] = useState<string | null>(initialStatus);
   const [dateDays, setDateDaysRaw] = useState<number | null>(initialDateDays);
+
+  // Tag filter (array of tag ids). AND logic - shops must contain all selected tags.
+  const [selectedTags, setSelectedTagsRaw] = useState<string[]>(initialSelectedTags);
 
   // Distance / "Near Me" filter state
   const [distanceActive, setDistanceActive] = useState<boolean>(initialDistanceActive);
@@ -113,6 +120,16 @@ export default function useFilters(opts?: UseFiltersOptions) {
     }
   }
 
+  // Set selected tags (replace entire array). Pass null/undefined to clear.
+  function setSelectedTags(value: string[] | null) {
+    if (!value || value.length === 0) {
+      setSelectedTagsRaw([]);
+    } else {
+      // normalize to strings
+      setSelectedTagsRaw(value.map((v) => String(v)));
+    }
+  }
+
   // Geolocation helpers
   function requestLocation() {
     if (!("geolocation" in navigator)) {
@@ -154,6 +171,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     setSearchText("");
     setStatusFilterRaw(null);
     setDateDaysRaw(null);
+    setSelectedTagsRaw([]); // clear tag filters as part of Clear All Filters
     setDistanceActive(false);
     setUserLocation(null);
     setLocationError(null);
@@ -193,6 +211,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     }
 
     params.searchText = (searchText && searchText.trim().length > 0) ? searchText.trim() : null;
+    params.tags = selectedTags.length > 0 ? selectedTags.slice() : null;
 
     return params;
   }
@@ -215,6 +234,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     locationPermission,
     locationError,
     filterError,
+    selectedTags,
 
     // constants / options
     DATE_FILTER_OPTIONS,
@@ -229,6 +249,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     setDistanceFilterEnabled,
     requestLocation,
     clearFilters,
+    setSelectedTags,
 
     // helpers
     validateFilters,

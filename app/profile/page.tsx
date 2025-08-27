@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../src/lib/supabase";
+import CoffeePassport from "../../src/components/CoffeePassport";
 
 type Stats = {
   visited: number;
@@ -635,6 +636,10 @@ export default function ProfilePage() {
             <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.drinkReviews}</div>
           </div>
         </div>
+      </section>
+{/* Coffee Passport */}
+      <section style={{ marginTop: 16 }}>
+        <CoffeePassport />
       </section>
 
       {/* Quick navigation */}

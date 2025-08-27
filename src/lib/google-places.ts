@@ -97,6 +97,45 @@ export async function searchNearbyPlaces(
 }
 
 /**
+ * Fetch place details (v1 Places API) for a single place resource name/id and return the place object.
+ * This is a thin helper to retrieve additional fields (e.g., photos) when the nearby search response
+ * does not include them.
+ *
+ * @param placeIdOrResource Either a plain place_id (e.g. "ChIJ...") or a resource name like "places/{place_id}"
+ */
+export async function getPlaceDetails(placeIdOrResource: string) {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!key) {
+    throw new Error("Missing Google Maps API key (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
+  }
+
+  // Normalize resource name: if plain id provided, prefix with "places/" to form resource name
+  const resourceName = placeIdOrResource.startsWith("places/") ? placeIdOrResource : `places/${placeIdOrResource}`;
+
+  const url = `https://places.googleapis.com/v1/${resourceName}`;
+  // Request only the photos field (minimal payload)
+  const fields = ["places.photos", "places.displayName", "places.name"].join(",");
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "X-Goog-Api-Key": key,
+      "X-Goog-FieldMask": fields,
+    },
+  });
+
+  if (!res.ok) {
+    // Surface a small debug log but do not throw; callers can handle missing details.
+    // eslint-disable-next-line no-console
+    console.info(`[google-places] getPlaceDetails: HTTP ${res.status} ${res.statusText} for ${resourceName}`);
+    return null;
+  }
+
+  const json = await res.json();
+  return json;
+}
+
+/**
  * Given a photo name from the Place object, construct a URL to fetch the image.
  * @param photoName The `name` property of a photo object from the Places API (New).
  * @param maxWidthPx The maximum width of the photo to request.

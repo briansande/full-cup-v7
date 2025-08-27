@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import TagSelector from './TagSelector';
 
 type Location = { lat: number; lng: number } | null;
 
@@ -24,6 +25,10 @@ type Props = {
   requestLocation: () => void;
   clearFilters: () => void;
   renderDebugButton?: React.ReactNode;
+
+  // Tag filter integration
+  selectedTags: string[];
+  setSelectedTags: (v: string[] | null) => void;
 };
 
 export default function FilterControls(props: Props) {
@@ -46,6 +51,8 @@ export default function FilterControls(props: Props) {
     requestLocation,
     clearFilters,
     renderDebugButton,
+    selectedTags,
+    setSelectedTags,
   } = props;
 
   return (
@@ -78,6 +85,11 @@ export default function FilterControls(props: Props) {
           outline: "none",
         }}
       />
+
+      {/* Tag selector — searchable, multi-select. Uses AND logic (shop must have all selected tags) */}
+      <div style={{ marginLeft: 6 }}>
+        <TagSelector selectedTags={selectedTags} setSelectedTags={setSelectedTags} placeholder="Filter by tags…" />
+      </div>
 
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <button

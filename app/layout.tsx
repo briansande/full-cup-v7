@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import Auth from "../src/components/Auth";
+import AchievementNotifier from "../src/components/AchievementNotifier";
+import AchievementNavBadge from "../src/components/AchievementNavBadge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,11 +42,18 @@ export default function RootLayout({
                 <Link href="/new-shops">New Shops</Link>
               </nav>
             </div>
-
+ 
             {/* Auth component shows login/signup forms or the user's email when signed in */}
-            <Auth />
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <AchievementNavBadge />
+              <Auth />
+            </div>
           </div>
         </header>
+
+        {/* Global achievement notifier (toasts) */}
+        <AchievementNotifier />
+
         {children}
       </body>
     </html>

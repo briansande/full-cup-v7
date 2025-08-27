@@ -89,6 +89,10 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         "price_level",
         "opening_hours",
         "photos",
+        // Photo-related columns (optimistic: include when table is empty)
+        "google_photo_reference",
+        "main_photo_url",
+        "photo_attribution",
         "types",
         "status",
         "is_chain_excluded",
@@ -131,11 +135,25 @@ export async function syncHoustonCoffeeShops(limit = 8) {
     const updates: Record<string, unknown>[] = [];
 
     for (const p of places) {
+      // Determine main photo (first available) and preserve attribution information.
+      const mainPhoto =
+        Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : null;
+  
       const photos =
         Array.isArray(p.photos) && p.photos.length > 0
           ? p.photos.map((photo) => getPhotoUrl(photo.name))
           : null;
-
+  
+      // Store the Places API photo "name" (e.g. "places/{place_id}/photos/{photo_reference}")
+      // so we can reconstruct media URLs later with getPhotoUrl(photoName).
+      const google_photo_reference = mainPhoto ? mainPhoto.name : null;
+      const main_photo_url = mainPhoto ? getPhotoUrl(mainPhoto.name) : null;
+      // Preserve authorAttributions as a JSON string so the UI can render required attribution.
+      const photo_attribution =
+        mainPhoto && Array.isArray(mainPhoto.authorAttributions) && mainPhoto.authorAttributions.length > 0
+          ? JSON.stringify(mainPhoto.authorAttributions)
+          : null;
+  
       const full = {
         google_place_id: p.id ?? null,
         name: p.displayName?.text ?? null,
@@ -150,6 +168,10 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         price_level: mapPriceLevel(p.priceLevel),
         opening_hours: p.regularOpeningHours ?? null,
         photos: photos,
+        // New photo-related fields
+        google_photo_reference: google_photo_reference,
+        main_photo_url: main_photo_url,
+        photo_attribution: photo_attribution,
         types: p.types && p.types.length > 0 ? p.types : null,
         status: mapBusinessStatusToDbStatus(p.businessStatus),
         is_chain_excluded: false,

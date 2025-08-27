@@ -86,10 +86,9 @@ export type NearbyPlace = {
 };
 
 export type NearbySearchResult = {
-  places: NearbyPlace[]; // deduped/aggregated places returned by this helper
+  places: NearbyPlace[];
   apiCalls: number;
-  hitLimit: boolean; // true when the raw API response hit the maxResultCount (indicating possible truncation)
-  rawCount?: number; // number of items returned by the raw API response before any deduplication/filtering
+  hitLimit: boolean;
 };
 
 type NearbySearchParams = {
@@ -159,7 +158,6 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
 
   const aggregatedById = new Map<string, NearbyPlace>();
   let apiCalls = 0;
-  let rawCount = 0;
 
   try {
     // Enhanced request body using primary types for better filtering
@@ -190,7 +188,7 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     });
 
     apiCalls++;
-  
+
     if (!res.ok) {
       // Non-fatal per task: return partial results with hitLimit=false
       try {
@@ -205,7 +203,7 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
         // eslint-disable-next-line no-console
         console.error("[density] Places API returned non-OK status and failed to read body.");
       }
-      return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false, rawCount };
+      return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
     }
 
     const json = (await res.json()) as unknown as PlacesNearbyResponse;
@@ -216,10 +214,6 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
       : Array.isArray(json.results)
       ? json.results
       : [];
-
-    // Capture the raw API result count before any deduplication/aggregation so callers
-    // (like adaptive-search) can decide to subdivide based on what the API returned.
-    rawCount = places.length;
 
     // Enhanced debug logging with more context
     if (places.length === 0) {
@@ -281,7 +275,7 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     console.error("[density] Error during nearbySearchWithPagination:", err);
     // eslint-disable-next-line no-console
     console.error(`[density] Search context: lat=${lat}, lng=${lng}, radius=${radius}`);
-    return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false, rawCount };
+    return { places: Array.from(aggregatedById.values()), apiCalls, hitLimit: false };
   }
 
   const finalPlaces = Array.from(aggregatedById.values());
@@ -298,10 +292,10 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     console.info(`[density] Result type breakdown:`, typeCounts);
   }
   
-  // Since searchNearby doesn't support pagination, the raw API can only return up to 20 items.
-  // Use the raw API response count (rawCount) to determine whether the API likely truncated results.
-  const hitLimit = rawCount === 20;
-  return { places: finalPlaces, apiCalls, hitLimit, rawCount };
+  // Since searchNearby doesn't support pagination, we can only get max 20 results
+  // Set hitLimit to true if we got exactly 20 results (indicating there might be more)
+  const hitLimit = finalPlaces.length === 20;
+  return { places: finalPlaces, apiCalls, hitLimit };
 }
 
 /**

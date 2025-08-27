@@ -4,6 +4,7 @@ import { supabase } from '@/src/lib/supabase';
 import ShopStatus from '@/src/components/ShopStatus';
 import ShopReviews from '@/src/components/ShopReviews';
 import DrinkReviews from '@/src/components/DrinkReviews';
+import ShopTags from '@/src/components/ShopTags';
 
 type Props = { params: { id: string } };
 
@@ -13,7 +14,7 @@ export default async function Page({ params }: Props) {
   try {
     const res = await supabase
       .from('coffee_shops')
-      .select('id,name,address,formatted_address,phone,google_rating,opening_hours,website')
+      .select('id,name,address,formatted_address,phone,google_rating,opening_hours,website,main_photo_url,photo_attribution,google_photo_reference')
       .eq('id', id)
       .single();
 
@@ -29,6 +30,92 @@ export default async function Page({ params }: Props) {
     }
 
     const shop = res.data as any;
+    
+    // Fetch reviews for this shop and compute averages (overall + per-criterion) in server-side code
+    try {
+      const revRes = await supabase
+        .from('shop_reviews')
+        .select('rating,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating')
+        .eq('shop_id', id)
+        .limit(1000);
+      if (!revRes.error && Array.isArray(revRes.data)) {
+        const rows = revRes.data as any[];
+        const agg = {
+          sumRating: 0, countRating: 0,
+          sumCoffee: 0, countCoffee: 0,
+          sumAtmos: 0, countAtmos: 0,
+          sumNoise: 0, countNoise: 0,
+          sumWifi: 0, countWifi: 0,
+          sumWork: 0, countWork: 0,
+          sumService: 0, countService: 0,
+        };
+        for (const r of rows) {
+          const ratingVal = r.rating;
+          const ratingNum = ratingVal == null ? NaN : Number(ratingVal);
+          if (!Number.isNaN(ratingNum)) { agg.sumRating += ratingNum; agg.countRating += 1; }
+
+          if (r.coffee_quality_rating != null) { agg.sumCoffee += Number(r.coffee_quality_rating); agg.countCoffee += 1; }
+          if (r.atmosphere_rating != null) { agg.sumAtmos += Number(r.atmosphere_rating); agg.countAtmos += 1; }
+          if (r.noise_level_rating != null) { agg.sumNoise += Number(r.noise_level_rating); agg.countNoise += 1; }
+          if (r.wifi_quality_rating != null) { agg.sumWifi += Number(r.wifi_quality_rating); agg.countWifi += 1; }
+          if (r.work_friendliness_rating != null) { agg.sumWork += Number(r.work_friendliness_rating); agg.countWork += 1; }
+          if (r.service_rating != null) { agg.sumService += Number(r.service_rating); agg.countService += 1; }
+        }
+
+        shop.avgRating = agg.countRating > 0 ? agg.sumRating / agg.countRating : null;
+        shop.avgCoffeeQuality = agg.countCoffee > 0 ? agg.sumCoffee / agg.countCoffee : null;
+        shop.avgAtmosphere = agg.countAtmos > 0 ? agg.sumAtmos / agg.countAtmos : null;
+        shop.avgNoiseLevel = agg.countNoise > 0 ? agg.sumNoise / agg.countNoise : null;
+        shop.avgWifiQuality = agg.countWifi > 0 ? agg.sumWifi / agg.countWifi : null;
+        shop.avgWorkFriendliness = agg.countWork > 0 ? agg.sumWork / agg.countWork : null;
+        shop.avgService = agg.countService > 0 ? agg.sumService / agg.countService : null;
+      } else {
+        shop.avgRating = null;
+        shop.avgCoffeeQuality = null;
+        shop.avgAtmosphere = null;
+        shop.avgNoiseLevel = null;
+        shop.avgWifiQuality = null;
+        shop.avgWorkFriendliness = null;
+        shop.avgService = null;
+      }
+    } catch {
+      shop.avgRating = null;
+      shop.avgCoffeeQuality = null;
+      shop.avgAtmosphere = null;
+      shop.avgNoiseLevel = null;
+      shop.avgWifiQuality = null;
+      shop.avgWorkFriendliness = null;
+      shop.avgService = null;
+    }
+
+    // Prepare main photo URL (fallback to bundled placeholder) and parse attribution if available.
+    const mainPhotoUrl = shop?.main_photo_url && shop.main_photo_url !== "" ? shop.main_photo_url : "/file.svg";
+    let photoAttributionElement: React.ReactNode = null;
+    if (shop?.photo_attribution) {
+      try {
+        const attrs = JSON.parse(String(shop.photo_attribution));
+        if (Array.isArray(attrs) && attrs.length > 0) {
+          const a = attrs[0];
+          const name = a.displayName ?? a.name ?? null;
+          const uri = a.uri ?? a.photoUri ?? null;
+          if (uri && name) {
+            photoAttributionElement = (
+              <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                Photo: <a href={uri} target="_blank" rel="noopener noreferrer">{name}</a>
+              </div>
+            );
+          } else if (uri) {
+            photoAttributionElement = (
+              <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                Photo: <a href={uri} target="_blank" rel="noopener noreferrer">{uri}</a>
+              </div>
+            );
+          }
+        }
+      } catch {
+        // ignore malformed attribution
+      }
+    }
 
     // Fetch drink review count for this shop (simple server-side count)
     let drinkReviewCount = 0;
@@ -135,6 +222,11 @@ export default async function Page({ params }: Props) {
           <ShopStatus shopId={String(shop.id)} />
         </div>
 
+        {/* Tagging: show popular tags and allow adding/voting */}
+        <div style={{ marginTop: 18 }}>
+          <ShopTags shopId={String(shop.id)} />
+        </div>
+  
         {/* Simple reviews (rating + optional text) */}
         <div style={{ marginTop: 18 }}>
           <ShopReviews shopId={String(shop.id)} />

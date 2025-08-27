@@ -71,6 +71,9 @@ export default function Map() {
     requestLocation,
     clearFilters,
     STATUS_LABEL_MAP,
+    // tag filter state
+    selectedTags,
+    setSelectedTags,
   } = filters;
 
   // Grid debug overlay state (lazy loaded)
@@ -169,6 +172,16 @@ export default function Map() {
   const filteredShops = shops && shops.length > 0
     ? shops.filter((s: any) => {
         if (s.latitude == null || s.longitude == null) return false;
+
+        // Tag filter (AND logic): if selectedTags present, require shop.tagIds includes all selected tags
+        if (selectedTags && Array.isArray(selectedTags) && selectedTags.length > 0) {
+          const shopTagIds: string[] = Array.isArray(s.tagIds) ? s.tagIds.map(String) : [];
+          // if shop lacks tags or doesn't include all selected tags, filter out
+          if (!shopTagIds || !selectedTags.every((t: string) => shopTagIds.includes(String(t)))) {
+            return false;
+          }
+        }
+
         // If a status filter is active, only include matching statuses (treat null as 'default' which won't match)
         if (statusFilter) {
           if ((s.status ?? "default") !== statusFilter) return false;
@@ -198,16 +211,17 @@ export default function Map() {
     const count = filteredShops ? filteredShops.length : 0;
     const statusLabel = statusFilter ? (STATUS_LABEL_MAP[statusFilter] ?? statusFilter) : null;
     const distanceSuffix = distanceActive ? ` within ${distanceRadiusMiles} miles` : "";
+    const tagSuffix = selectedTags && selectedTags.length > 0 ? ` filtered by ${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : '';
     if (dateDays) {
       if (statusLabel) {
-        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days${distanceSuffix}`;
+        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
       }
-      return `Showing ${count} shops added in last ${dateDays} days${distanceSuffix}`;
+      return `Showing ${count} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
     }
     if (statusLabel) {
-      return `Showing ${count} ${statusLabel.toLowerCase()} shops${distanceSuffix}`;
+      return `Showing ${count} ${statusLabel.toLowerCase()} shops${distanceSuffix}${tagSuffix}`;
     }
-    return `Showing ${count} shops${distanceSuffix}`;
+    return `Showing ${count} shops${distanceSuffix}${tagSuffix}`;
   })();
   
   return (
@@ -231,6 +245,9 @@ export default function Map() {
         locationError={locationError}
         requestLocation={requestLocation}
         clearFilters={clearFilters}
+        // Tag filter props
+        selectedTags={selectedTags}
+        setSelectedTags={setSelectedTags}
         renderDebugButton={showDebugToggle ? (
           <button
             onClick={async () => {
@@ -343,21 +360,42 @@ export default function Map() {
                   <Popup>
                     <div style={{ minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
-  
-                      {distanceActive && (s as any)._distanceMiles != null ? (
-                        <div style={{ marginTop: 6 }}>
-                          Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
+    
+                        {distanceActive && (s as any)._distanceMiles != null ? (
+                          <div style={{ marginTop: 6 }}>
+                            Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
+                          </div>
+                        ) : null}
+    
+                        {s.avgRating != null ? (
+                          <div style={{ marginTop: 6 }}>
+                            Overall: <strong>{Number(s.avgRating).toFixed(1)} ★</strong>
+                          </div>
+                        ) : null}
+    
+                        <div style={{ marginTop: 6, fontSize: 13 }}>
+                          {s.avgCoffeeQuality != null ? <div>Coffee: <strong>{Number(s.avgCoffeeQuality).toFixed(1)} ★</strong></div> : null}
+                          {s.avgAtmosphere != null ? <div>Atmosphere: <strong>{Number(s.avgAtmosphere).toFixed(1)} ★</strong></div> : null}
+                          {s.avgNoiseLevel != null ? <div>Noise level: <strong>{Number(s.avgNoiseLevel).toFixed(1)}</strong></div> : null}
+                          {s.avgWifiQuality != null ? <div>WiFi: <strong>{Number(s.avgWifiQuality).toFixed(1)} ★</strong></div> : null}
+                          {s.avgWorkFriendliness != null ? <div>Work friendly: <strong>{Number(s.avgWorkFriendliness).toFixed(1)} ★</strong></div> : null}
+                          {s.avgService != null ? <div>Service: <strong>{Number(s.avgService).toFixed(1)} ★</strong></div> : null}
                         </div>
-                      ) : null}
   
-                      {s.avgRating != null ? (
+                        {/* Top tags preview (2-3) */}
+                        {(s as any).topTags && Array.isArray((s as any).topTags) && (s as any).topTags.length > 0 ? (
+                          <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {((s as any).topTags as any[]).slice(0,3).map((t: any) => (
+                              <span key={t.tag_id} style={{ padding: '4px 8px', borderRadius: 999, background: '#f3f4f6', fontSize: 13 }}>
+                                {t.tag_name}{t.total_votes > 0 ? ` +${t.total_votes}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+  
                         <div style={{ marginTop: 6 }}>
-                          Average rating: <strong>{Number(s.avgRating).toFixed(1)} ★</strong>
+                          <Link href={`/shop/${s.id}`}>View Details</Link>
                         </div>
-                      ) : null}
-                      <div style={{ marginTop: 6 }}>
-                        <Link href={`/shop/${s.id}`}>View Details</Link>
-                      </div>
                     </div>
                   </Popup>
                 </Marker>
