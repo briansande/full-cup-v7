@@ -43,9 +43,9 @@ export async function searchNearbyPlaces(
   query: string,
   limit = 2
 ): Promise<Place[]> {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
-    throw new Error("Missing Google Maps API key (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
+    throw new Error("Missing Google Maps API key (GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
   }
 
   const url = "https://places.googleapis.com/v1/places:searchText";
@@ -104,9 +104,9 @@ export async function searchNearbyPlaces(
  * @param placeIdOrResource Either a plain place_id (e.g. "ChIJ...") or a resource name like "places/{place_id}"
  */
 export async function getPlaceDetails(placeIdOrResource: string) {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
-    throw new Error("Missing Google Maps API key (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
+    throw new Error("Missing Google Maps API key (GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
   }
 
   // Normalize resource name: if plain id provided, prefix with "places/" to form resource name
@@ -142,7 +142,7 @@ export async function getPlaceDetails(placeIdOrResource: string) {
  * @returns A full URL to the photo.
  */
 export function getPhotoUrl(photoName: string, maxWidthPx = 800): string {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
     // This function is often called in the client, so we don't throw an error here.
     // An empty string will result in a broken image, which is a visual cue.

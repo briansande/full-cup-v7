@@ -1,19 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
-
-type TagSummary = {
-  tag_id: string;
-  tag_name: string;
-  category: string | null;
-  total_votes: number;
-  user_count: number;
-};
-
-type SuggestResult = {
-  id: string;
-  name: string;
-};
+import { TagSummary, SuggestResult } from '@/src/types';
+import ShopTagItem from './ShopTagItem';
 
 type Props = {
   shopId: string;
@@ -394,25 +383,13 @@ export default function ShopTags({ shopId }: Props) {
         ) : (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {tags.map((t) => (
-              <div key={t.tag_id} style={{ padding: '6px 8px', borderRadius: 999, background: '#f3f4f6', display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div style={{ fontWeight: 700 }}>{t.tag_name}</div>
-                <div style={{ fontSize: 13, color: '#444' }}>{t.total_votes > 0 ? `+${t.total_votes}` : ''}</div>
-                <button
-                  type="button"
-                  onClick={() => handleVote(t)}
-                  disabled={submitting}
-                  title="Thumbs up"
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    border: '1px solid #d1d5db',
-                    background: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  👍
-                </button>
-              </div>
+              <ShopTagItem
+                key={t.tag_id}
+                tag={t}
+                userId={userId}
+                onVote={handleVote}
+                submitting={submitting}
+              />
             ))}
           </div>
         )}

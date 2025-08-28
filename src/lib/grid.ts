@@ -85,8 +85,8 @@ function kmOffsetToDeg(latRef: number, latOffsetKm: number, lngOffsetKm: number)
 export function generateGrid(mode: Mode): GridPoint[] {
   if (mode === 'test') {
     // Test mode: 2 cols x 3 rows centered on Downtown Houston
-    const cols = 1;
-    const rows = 1;
+    const cols = 2;
+    const rows = 3;
     const spacingKm = 2; // ~2 km spacing requested
     const centerLat = TEST_BOUNDARIES.centerLat;
     const centerLng = TEST_BOUNDARIES.centerLng;

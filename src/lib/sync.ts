@@ -2,7 +2,7 @@
  * Sync helper: fetch rich Google Place data and insert into Supabase.
  *
  * Workflow:
- * 1. Use searchNearbyPlaces to find a set of places with all necessary fields.
+ * 1. Use nearbySearchWithPagination to find a set of places with all necessary fields.
  * 2. Map fields to the recommended schema (google_place_id, name, address,
  *    formatted_address, latitude, longitude, phone, website, google_rating,
  *    price_level, opening_hours, photos, types, status, is_chain_excluded,
@@ -12,8 +12,10 @@
  * Returns: { ok: boolean, inserted?: number, updated?: number, error?: string }
  */
 
-import { searchNearbyPlaces, getPhotoUrl } from "@/src/lib/google-places";
+import { nearbySearchWithPagination } from "@/src/lib/density";
 import { supabase } from "@/src/lib/supabase";
+import { getPhotoUrl } from "@/src/lib/google-places";
+import { applyCoffeeShopFilters } from "@/src/lib/coffee-filtering";
 
 function nowIso() {
   return new Date().toISOString();
@@ -30,27 +32,16 @@ function mapBusinessStatusToDbStatus(b?: string | null) {
   return "active";
 }
 
-function mapPriceLevel(priceLevel?: string): number | null {
-  if (!priceLevel) return null;
-  switch (priceLevel) {
-    case "PRICE_LEVEL_FREE":
-      return 0;
-    case "PRICE_LEVEL_INEXPENSIVE":
-      return 1;
-    case "PRICE_LEVEL_MODERATE":
-      return 2;
-    case "PRICE_LEVEL_EXPENSIVE":
-      return 3;
-    case "PRICE_LEVEL_VERY_EXPENSIVE":
-      return 4;
-    default:
-      return null;
-  }
+function mapPriceLevel(priceLevel?: number): number | null {
+  if (typeof priceLevel !== "number") return null;
+  // Google Maps API price levels are 0-4
+  if (priceLevel >= 0 && priceLevel <= 4) return priceLevel;
+  return null;
 }
 
 /**
  * syncHoustonCoffeeShops
- * - Builds payloads from Google Places
+ * - Builds payloads from Google Places using the adaptive search system
  * - Detects which google_place_id values already exist in the DB
  * - For existing rows => perform an update (do not overwrite created_at/date_added)
  * - For new rows => insert full payload including created_at/date_added
@@ -99,18 +90,30 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         "date_added",
         "last_updated",
         "created_at",
-        "updated_at"
+        "updated_at",
+        "sync_metadata"
       );
     }
 
-    // Step 1: Use new Text Search to get rich place data
-    const places = await searchNearbyPlaces("coffee shops in Houston, TX", limit);
+    // Step 1: Use nearby search with pagination to get rich place data
+    // We'll search in the center of Houston with a reasonable radius
+    const searchResult = await nearbySearchWithPagination({
+      lat: 29.7604, // Downtown Houston
+      lng: -95.3698,
+      radius: 5000, // 5km radius
+      maxPages: limit
+    });
+    
+    // Apply coffee shop filtering
+    const filteredPlaces = applyCoffeeShopFilters(searchResult.places);
+    const places = filteredPlaces.filtered;
+    
     if (!places || places.length === 0) {
       return { ok: true, inserted: 0, updated: 0 };
     }
 
     // Collect google_place_ids to detect existing rows
-    const placeIds = places.map((p) => p.id).filter(Boolean) as string[];
+    const placeIds = places.map((p) => p.id || p.place_id || p.placeId).filter(Boolean) as string[];
 
     // Query existing rows to know which ids already exist
     let existingIds = new Set<string>();
@@ -136,44 +139,86 @@ export async function syncHoustonCoffeeShops(limit = 8) {
 
     for (const p of places) {
       // Determine main photo (first available) and preserve attribution information.
-      const mainPhoto =
-        Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : null;
+      const photosArray = Array.isArray(p.photos) ? p.photos : [];
+      const mainPhoto = photosArray.length > 0 ? photosArray[0] : null;
   
-      const photos =
-        Array.isArray(p.photos) && p.photos.length > 0
-          ? p.photos.map((photo) => getPhotoUrl(photo.name))
-          : null;
+      const photos = photosArray.length > 0
+        ? photosArray.map((photo: any) => {
+            // Handle both legacy and v1 photo shapes
+            const photoName = photo.name || photo.photo_reference;
+            return photoName ? getPhotoUrl(photoName) : null;
+          }).filter(Boolean)
+        : null;
   
       // Store the Places API photo "name" (e.g. "places/{place_id}/photos/{photo_reference}")
       // so we can reconstruct media URLs later with getPhotoUrl(photoName).
-      const google_photo_reference = mainPhoto ? mainPhoto.name : null;
-      const main_photo_url = mainPhoto ? getPhotoUrl(mainPhoto.name) : null;
+      const google_photo_reference = mainPhoto ? (mainPhoto.name || mainPhoto.photo_reference) : null;
+      const main_photo_url = google_photo_reference ? getPhotoUrl(google_photo_reference) : null;
       // Preserve authorAttributions as a JSON string so the UI can render required attribution.
       const photo_attribution =
         mainPhoto && Array.isArray(mainPhoto.authorAttributions) && mainPhoto.authorAttributions.length > 0
           ? JSON.stringify(mainPhoto.authorAttributions)
           : null;
   
+      // Extract name, handling both legacy and v1 shapes
+      const name = p.displayName?.text || p.name || null;
+      
+      // Extract location, handling multiple shapes
+      let latitude = null;
+      let longitude = null;
+      if (p.location) {
+        if (typeof p.location.latitude === "number" && typeof p.location.longitude === "number") {
+          latitude = p.location.latitude;
+          longitude = p.location.longitude;
+        } else if (typeof (p.location as any).lat === "number" && typeof (p.location as any).lng === "number") {
+          latitude = (p.location as any).lat;
+          longitude = (p.location as any).lng;
+        }
+      }
+      if (!latitude && !longitude && p.geometry?.location) {
+        latitude = p.geometry.location.lat;
+        longitude = p.geometry.location.lng;
+      }
+      
+      // Extract address
+      const formatted_address = p.formattedAddress || p.formatted_address || null;
+      const address = p.vicinity || p.address || formatted_address;
+      
+      // Extract contact info
+      const phone = p.formatted_phone_number || p.nationalPhoneNumber || p.phone || null;
+      const website = p.website || p.websiteUri || null;
+      
+      // Extract ratings and pricing
+      const google_rating = typeof p.rating === "number" ? p.rating : null;
+      const google_user_ratings_total = typeof p.userRatingCount === "number" ? p.userRatingCount : null;
+      const price_level = mapPriceLevel(typeof p.priceLevel === "number" ? p.priceLevel : p.price_level);
+      
+      // Extract business status
+      const businessStatus = p.businessStatus || "OPERATIONAL";
+      
+      // Extract types
+      const types = Array.isArray(p.types) ? p.types : null;
+      
       const full = {
-        google_place_id: p.id ?? null,
-        name: p.displayName?.text ?? null,
-        address: p.formattedAddress ?? null,
-        formatted_address: p.formattedAddress ?? null,
-        latitude: p.location?.latitude ?? null,
-        longitude: p.location?.longitude ?? null,
-        phone: p.nationalPhoneNumber ?? null,
-        website: p.websiteUri ?? null,
-        google_rating: p.rating ?? null,
-        google_user_ratings_total: p.userRatingCount ?? null,
-        price_level: mapPriceLevel(p.priceLevel),
-        opening_hours: p.regularOpeningHours ?? null,
+        google_place_id: p.id || p.place_id || p.placeId || null,
+        name: name,
+        address: address,
+        formatted_address: formatted_address,
+        latitude: latitude,
+        longitude: longitude,
+        phone: phone,
+        website: website,
+        google_rating: google_rating,
+        google_user_ratings_total: google_user_ratings_total,
+        price_level: price_level,
+        opening_hours: p.regularOpeningHours || p.currentOpeningHours || p.opening_hours || null,
         photos: photos,
         // New photo-related fields
         google_photo_reference: google_photo_reference,
         main_photo_url: main_photo_url,
         photo_attribution: photo_attribution,
-        types: p.types && p.types.length > 0 ? p.types : null,
-        status: mapBusinessStatusToDbStatus(p.businessStatus),
+        types: types,
+        status: mapBusinessStatusToDbStatus(businessStatus),
         is_chain_excluded: false,
         date_added: nowIso(),
         last_updated: nowIso(),

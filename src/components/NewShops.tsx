@@ -1,21 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
-import Link from 'next/link';
 import useFilters from '@/src/hooks/useFilters';
-
-type Shop = {
-  id: string;
-  name: string | null;
-  address?: string | null;
-  formatted_address?: string | null;
-  google_rating?: number | null;
-  opening_hours?: any;
-  date_added?: string | null;
-  main_photo_url?: string | null;
-  photo_attribution?: string | null;
-};
+import { Shop } from '@/src/types';
+import ShopCard from './ShopCard';
 
 export default function NewShops() {
   // Use shared filter hook (we only use the date filter here)
@@ -37,7 +26,7 @@ export default function NewShops() {
 
         const res = await supabase
           .from('coffee_shops')
-          .select('id,name,address,formatted_address,google_rating,opening_hours,date_added')
+          .select('id,name,address,formatted_address,google_rating,opening_hours,date_added,main_photo_url,photo_attribution')
           .gte('date_added', cutoff)
           .order('date_added', { ascending: false });
 
@@ -65,6 +54,19 @@ export default function NewShops() {
       mounted = false;
     };
   }, [dateDays]);
+
+  // Apply client-side tag filtering (AND logic) using shops' tagIds if present
+  const filteredShops = useMemo(() => {
+    if (!shops || shops.length === 0) return [];
+    
+    return shops.filter((s: Shop) => {
+      if (selectedTags && selectedTags.length > 0) {
+        const shopTagIds: string[] = Array.isArray(s.tagIds) ? s.tagIds.map(String) : [];
+        return selectedTags.every((t) => shopTagIds.includes(String(t)));
+      }
+      return true;
+    });
+  }, [shops, selectedTags]);
 
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
@@ -100,75 +102,15 @@ export default function NewShops() {
       ) : error ? (
         <div style={{ color: 'red' }}>Error: {error}</div>
       ) : shops && shops.length > 0 ? (
-        (() => {
-          // Apply client-side tag filtering (AND logic) using shops' tagIds if present
-          const filtered = shops.filter((s: any) => {
-            if (selectedTags && selectedTags.length > 0) {
-              const shopTagIds: string[] = Array.isArray((s as any).tagIds) ? (s as any).tagIds.map(String) : [];
-              return selectedTags.every((t) => shopTagIds.includes(String(t)));
-            }
-            return true;
-          });
-          if (filtered.length === 0) {
-            return <div>No new shops found for the selected time range and tag filters.</div>;
-          }
-          return (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-              {filtered.map((s) => {
-                const photoUrl = s.main_photo_url && s.main_photo_url !== "" ? s.main_photo_url : "/file.svg";
-                return (
-                  <div key={s.id} style={{ border: '1px solid #e6e6e6', padding: 12, borderRadius: 8, display: 'flex', gap: 12 }}>
-                    <div style={{ minWidth: 120, maxWidth: 160, flex: '0 0 160px' }}>
-                      <img
-                        src={photoUrl}
-                        alt={s.name ?? 'Coffee shop'}
-                        style={{ width: '100%', height: 96, objectFit: 'cover', borderRadius: 6, background: '#f3f3f3' }}
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/file.svg'; }}
-                      />
-                    </div>
-        
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{s.name ?? 'Unnamed shop'}</div>
-                          <div style={{ color: '#555', marginTop: 6 }}>
-                            {s.formatted_address ?? s.address ?? 'Address not available'}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right', color: '#666', fontSize: 13 }}>
-                          {s.date_added ? new Date(s.date_added).toLocaleString() : 'Date unknown'}
-                        </div>
-                      </div>
-        
-                      <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
-                        {s.google_rating != null ? (
-                          <div style={{ color: '#333' }}>Rating: <strong>{s.google_rating} ★</strong></div>
-                        ) : null}
-        
-                        {s.opening_hours ? (
-                          <div style={{ color: '#333' }}>
-                            Hours:{" "}
-                            {Array.isArray(s.opening_hours?.weekdayDescriptions) ? (
-                              <span style={{ fontSize: 13 }}>
-                                {s.opening_hours.weekdayDescriptions[0] ?? 'View details'}
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: 13 }}>See details</span>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-        
-                      <div style={{ marginTop: 12 }}>
-                        <Link href={`/shop/${s.id}`}>View details</Link>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()
+        filteredShops.length === 0 ? (
+          <div>No new shops found for the selected time range and tag filters.</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            {filteredShops.map((s) => (
+              <ShopCard key={s.id} shop={s} />
+            ))}
+          </div>
+        )
       ) : (
         <div>No new shops found for the selected time range.</div>
       )}

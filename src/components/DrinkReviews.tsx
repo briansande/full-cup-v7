@@ -1,16 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/src/lib/supabase";
-
-type Review = {
-  id: string;
-  user_id: string;
-  drink_name: string;
-  rating: string; // 'pass' | 'good' | 'awesome'
-  review_text: string | null;
-  drink_type: string | null;
-  created_at: string | null;
-};
+import { DrinkReview } from "@/src/types";
 
 type Props = {
   shopId: string;
@@ -29,7 +20,7 @@ function scoreToLabel(n: number) {
 }
 
 export default function DrinkReviews({ shopId }: Props) {
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<DrinkReview[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +55,7 @@ export default function DrinkReviews({ shopId }: Props) {
         // Fetch drink reviews for this shop
         const rev = await supabase
           .from("drink_reviews")
-          .select("id,user_id,drink_name,rating,review_text,drink_type,created_at")
+          .select("id,user_id,shop_id,drink_name,rating,review_text,drink_type,created_at")
           .eq("shop_id", shopId)
           .order("created_at", { ascending: false });
 
@@ -73,7 +64,7 @@ export default function DrinkReviews({ shopId }: Props) {
           setError(String(rev.error));
           setReviews([]);
         } else {
-          setReviews(Array.isArray(rev.data) ? (rev.data as Review[]) : []);
+          setReviews(Array.isArray(rev.data) ? (rev.data as DrinkReview[]) : []);
         }
       } catch (err) {
         if (!mounted) return;
@@ -97,11 +88,11 @@ export default function DrinkReviews({ shopId }: Props) {
     try {
       const rev = await supabase
         .from("drink_reviews")
-        .select("id,user_id,drink_name,rating,review_text,drink_type,created_at")
+        .select("id,user_id,shop_id,drink_name,rating,review_text,drink_type,created_at")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
       if (!rev.error && Array.isArray(rev.data)) {
-        setReviews(rev.data as Review[]);
+        setReviews(rev.data as DrinkReview[]);
       } else if (rev.error) {
         setError(String(rev.error));
       }
@@ -167,7 +158,7 @@ export default function DrinkReviews({ shopId }: Props) {
   }
 
   // Edit handlers
-  function startEdit(r: Review) {
+  function startEdit(r: DrinkReview) {
     setEditingId(r.id);
     setEditDrinkName(r.drink_name);
     setEditDrinkType(r.drink_type ?? "");
@@ -231,7 +222,7 @@ export default function DrinkReviews({ shopId }: Props) {
 
   // Group reviews by drink name + type
   const grouped = useMemo(() => {
-    const map = new Map<string, { drink_name: string; drink_type: string | null; reviews: Review[] }>();
+    const map = new Map<string, { drink_name: string; drink_type: string | null; reviews: DrinkReview[] }>();
     for (const r of reviews) {
       const key = `${r.drink_name.toLowerCase().trim()}|${(r.drink_type ?? "").toLowerCase().trim()}`;
       if (!map.has(key)) {

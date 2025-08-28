@@ -1,31 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/src/lib/supabase";
-
-type TopTag = {
-  tag_id: string;
-  tag_name: string;
-  total_votes: number;
-};
-
-type Shop = {
-  id: string;
-  name: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  status?: string | null;
-  avgRating?: number | null;
-  avgCoffeeQuality?: number | null;
-  avgAtmosphere?: number | null;
-  avgNoiseLevel?: number | null;
-  avgWifiQuality?: number | null;
-  avgWorkFriendliness?: number | null;
-  avgService?: number | null;
-  main_photo_url?: string | null;
-  photo_attribution?: string | null;
-  topTags?: TopTag[]; // top 2-3 most popular tags for quick display
-  tagIds?: string[]; // full list of tag ids for tag-based filtering (AND logic)
-};
+import { Shop, TopTag } from "@/src/types";
 
 export default function useShops(days?: number | null) {
   const [shops, setShops] = useState<Shop[] | null>(null);
@@ -57,7 +33,7 @@ export default function useShops(days?: number | null) {
         } else {
           const data = Array.isArray(res.data) ? res.data : [];
           // Map basic shop info
-          const mapped = data.map((d: any) => ({
+          const mapped: Shop[] = data.map((d: any) => ({
             id: String(d.id),
             name: d.name ?? null,
             latitude:
@@ -76,7 +52,7 @@ export default function useShops(days?: number | null) {
             avgRating: null,
             main_photo_url: d.main_photo_url ?? null,
             photo_attribution: d.photo_attribution ?? null,
-          })) as Shop[];
+          }));
 
           // Attempt to fetch user's statuses and merge
           try {

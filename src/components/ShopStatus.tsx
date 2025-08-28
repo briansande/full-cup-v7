@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/src/lib/supabase";
+import { User } from "@/src/types";
 
 type Props = {
   shopId: string;
@@ -13,7 +14,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function ShopStatus({ shopId }: Props) {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);

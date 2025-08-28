@@ -1,11 +1,12 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
 import useFilters from "@/src/hooks/useFilters";
 import FilterControls from "@/src/components/FilterControls";
 import { generateGrid, GridPoint } from "@/src/lib/grid";
 import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
+import { Shop } from "@/src/types";
 
 /**
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
@@ -23,7 +24,13 @@ export default function Map() {
   const filters = useFilters();
   const { shops, loading } = useShops(filters.dateDays);
   
-  const [RL, setRL] = useState<any | null>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [RL, setRL] = useState<{
+  MapContainer: any;
+  TileLayer: any;
+  Marker: any;
+  Popup: any;
+  L: any;
+} | null>(null);
 
   
   // If a shop is extremely close to the user's reported location, hide the shop marker
@@ -83,6 +90,66 @@ export default function Map() {
   // Admin guard for showing debug controls. If no explicit admin check exists,
   // enable toggle only when NEXT_PUBLIC_GRID_DEBUG_ADMIN === "true"
   const showDebugToggle = process.env.NEXT_PUBLIC_GRID_DEBUG_ADMIN === "true";
+  
+  // Move all useMemo hooks here, before any conditional returns
+  const normalizedSearch = useMemo(() => searchText.trim().toLowerCase(), [searchText]);
+  
+  const filteredShops = useMemo(() => {
+    if (!shops || shops.length === 0) return [];
+    
+    return shops.filter((s: Shop) => {
+      if (s.latitude == null || s.longitude == null) return false;
+
+      // Tag filter (AND logic): if selectedTags present, require shop.tagIds includes all selected tags
+      if (selectedTags && Array.isArray(selectedTags) && selectedTags.length > 0) {
+        const shopTagIds: string[] = Array.isArray(s.tagIds) ? s.tagIds.map(String) : [];
+        // if shop lacks tags or doesn't include all selected tags, filter out
+        if (!shopTagIds || !selectedTags.every((t: string) => shopTagIds.includes(String(t)))) {
+          return false;
+        }
+      }
+
+      // If a status filter is active, only include matching statuses (treat null as 'default' which won't match)
+      if (statusFilter) {
+        if ((s.status ?? "default") !== statusFilter) return false;
+      }
+
+      // If distance filter is enabled and we have a user location, compute distance and filter accordingly.
+      if (distanceActive) {
+        if (!userLocation) {
+          // If userLocation not available yet, exclude until location is resolved.
+          return false;
+        }
+        const d = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
+        // attach ephemeral distance for display in popups
+        (s as any)._distanceMiles = d;
+        if (typeof distanceRadiusMiles === "number" && d > distanceRadiusMiles) return false;
+      } else {
+        // ensure no stale distance is left
+        (s as any)._distanceMiles = null;
+      }
+
+      if (!normalizedSearch) return true;
+      return (s.name ?? "").toLowerCase().includes(normalizedSearch);
+    });
+  }, [shops, selectedTags, statusFilter, distanceActive, userLocation, distanceRadiusMiles, normalizedSearch]);
+
+  const filterCountMessage = useMemo(() => {
+    const count = filteredShops ? filteredShops.length : 0;
+    const statusLabel = statusFilter ? (STATUS_LABEL_MAP[statusFilter] ?? statusFilter) : null;
+    const distanceSuffix = distanceActive ? ` within ${distanceRadiusMiles} miles` : "";
+    const tagSuffix = selectedTags && selectedTags.length > 0 ? ` filtered by ${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : '';
+    if (dateDays) {
+      if (statusLabel) {
+        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
+      }
+      return `Showing ${count} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
+    }
+    if (statusLabel) {
+      return `Showing ${count} ${statusLabel.toLowerCase()} shops${distanceSuffix}${tagSuffix}`;
+    }
+    return `Showing ${count} shops${distanceSuffix}${tagSuffix}`;
+  }, [filteredShops, statusFilter, STATUS_LABEL_MAP, distanceActive, distanceRadiusMiles, selectedTags, dateDays]);
   
   useEffect(() => {
     let mounted = true;
@@ -167,62 +234,6 @@ export default function Map() {
     iconAnchor: [11, 11],
     popupAnchor: [0, -11],
   });
-  
-  const normalizedSearch = searchText.trim().toLowerCase();
-  const filteredShops = shops && shops.length > 0
-    ? shops.filter((s: any) => {
-        if (s.latitude == null || s.longitude == null) return false;
-
-        // Tag filter (AND logic): if selectedTags present, require shop.tagIds includes all selected tags
-        if (selectedTags && Array.isArray(selectedTags) && selectedTags.length > 0) {
-          const shopTagIds: string[] = Array.isArray(s.tagIds) ? s.tagIds.map(String) : [];
-          // if shop lacks tags or doesn't include all selected tags, filter out
-          if (!shopTagIds || !selectedTags.every((t: string) => shopTagIds.includes(String(t)))) {
-            return false;
-          }
-        }
-
-        // If a status filter is active, only include matching statuses (treat null as 'default' which won't match)
-        if (statusFilter) {
-          if ((s.status ?? "default") !== statusFilter) return false;
-        }
-
-        // If distance filter is enabled and we have a user location, compute distance and filter accordingly.
-        if (distanceActive) {
-          if (!userLocation) {
-            // If userLocation not available yet, exclude until location is resolved.
-            return false;
-          }
-          const d = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
-          // attach ephemeral distance for display in popups
-          (s as any)._distanceMiles = d;
-          if (typeof distanceRadiusMiles === "number" && d > distanceRadiusMiles) return false;
-        } else {
-          // ensure no stale distance is left
-          (s as any)._distanceMiles = null;
-        }
-
-        if (!normalizedSearch) return true;
-        return (s.name ?? "").toLowerCase().includes(normalizedSearch);
-      })
-    : [];
-
-  const filterCountMessage = (() => {
-    const count = filteredShops ? filteredShops.length : 0;
-    const statusLabel = statusFilter ? (STATUS_LABEL_MAP[statusFilter] ?? statusFilter) : null;
-    const distanceSuffix = distanceActive ? ` within ${distanceRadiusMiles} miles` : "";
-    const tagSuffix = selectedTags && selectedTags.length > 0 ? ` filtered by ${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : '';
-    if (dateDays) {
-      if (statusLabel) {
-        return `Showing ${count} ${statusLabel.toLowerCase()} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
-      }
-      return `Showing ${count} shops added in last ${dateDays} days${distanceSuffix}${tagSuffix}`;
-    }
-    if (statusLabel) {
-      return `Showing ${count} ${statusLabel.toLowerCase()} shops${distanceSuffix}${tagSuffix}`;
-    }
-    return `Showing ${count} shops${distanceSuffix}${tagSuffix}`;
-  })();
   
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
@@ -323,7 +334,7 @@ export default function Map() {
         />
   
         {filteredShops && filteredShops.length > 0
-          ? filteredShops.map((s: any) => {
+          ? filteredShops.map((s: Shop) => {
               if (s.latitude == null || s.longitude == null) return null;
               const pos: [number, number] = [s.latitude, s.longitude];
 
@@ -383,9 +394,9 @@ export default function Map() {
                         </div>
   
                         {/* Top tags preview (2-3) */}
-                        {(s as any).topTags && Array.isArray((s as any).topTags) && (s as any).topTags.length > 0 ? (
+                        {s.topTags && Array.isArray(s.topTags) && s.topTags.length > 0 ? (
                           <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {((s as any).topTags as any[]).slice(0,3).map((t: any) => (
+                            {s.topTags.slice(0,3).map((t) => (
                               <span key={t.tag_id} style={{ padding: '4px 8px', borderRadius: 999, background: '#f3f4f6', fontSize: 13 }}>
                                 {t.tag_name}{t.total_votes > 0 ? ` +${t.total_votes}` : ''}
                               </span>

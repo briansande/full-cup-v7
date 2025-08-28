@@ -116,9 +116,9 @@ interface PlacesNearbyResponse {
  */
 export async function nearbySearchWithPagination(params: NearbySearchParams): Promise<NearbySearchResult> {
   const { lat, lng, radius } = params; // maxPages and keyword are ignored
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
-    throw new Error("Missing Google Maps API key (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
+    throw new Error("Missing Google Maps API key (GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
   }
 
   const endpoint = "https://places.googleapis.com/v1/places:searchNearby";

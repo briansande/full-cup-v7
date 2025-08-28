@@ -123,6 +123,7 @@ export async function upsertShopsBatch(
       "status",
       "last_updated",
       "updated_at",
+      "sync_metadata"
     ];
 
   const batches = chunkArray(items, batchSize);
@@ -216,8 +217,49 @@ export async function upsertShopsBatch(
             ? JSON.stringify(mainPhoto.authorAttributions)
             : null;
   
-        // Best-effort opening_hours metadata attachment
-        const syncMeta = {
+        // Extract opening hours data without attaching sync metadata
+        // Prefer canonical opening hour shapes returned by the Places v1 API.
+        // Fall back to legacy `opening_hours` if present.
+        let opening_hours: any =
+          place?.regularOpeningHours ?? place?.currentOpeningHours ?? place?.opening_hours ?? null;
+  
+        // If opening_hours is an object but doesn't have the expected structure,
+        // set it to null so we don't store unnecessary data
+        if (opening_hours && typeof opening_hours === "object" && Object.keys(opening_hours).length === 0) {
+          opening_hours = null;
+        }
+        
+        // Create sync metadata object
+        const sync_metadata = {
+          sourceGridId: it.sourceGridId,
+          gridRadius: it.gridRadius,
+          searchLevel: it.searchLevel,
+          // Instead of embedding the full place payload (which can be large and noisy)
+          // store a minimal raw reference that is useful for debugging/traceability.
+          raw: {
+            id: place?.id ?? place?.place_id ?? place?.placeId ?? null,
+            name:
+              typeof place?.displayName?.text === "string"
+              ? place.displayName.text
+              : typeof place?.name === "string" && !String(place.name).startsWith("places/")
+              ? place.name
+              : null,
+            // keep coordinates if available for quick lookup
+            latitude:
+              place?.geometry?.location?.lat ??
+              place?.lat ??
+              place?.location?.latitude ??
+              null,
+            longitude:
+              place?.geometry?.location?.lng ??
+              place?.lng ??
+              place?.location?.longitude ??
+              null,
+          },
+        };
+        
+        // Create sync metadata object
+        const sync_metadata = {
           sourceGridId: it.sourceGridId,
           gridRadius: it.gridRadius,
           searchLevel: it.searchLevel,
@@ -244,19 +286,6 @@ export async function upsertShopsBatch(
               null,
           },
         };
-  
-        // Prefer canonical opening hour shapes returned by the Places v1 API.
-        // Fall back to legacy `opening_hours` if present.
-        let opening_hours: any =
-          place?.regularOpeningHours ?? place?.currentOpeningHours ?? place?.opening_hours ?? null;
-  
-        if (opening_hours && typeof opening_hours === "object") {
-          // Attach _sync metadata without embedding the full place object
-          opening_hours = { ...opening_hours, _sync: syncMeta };
-        } else {
-          // Store minimal sync metadata under opening_hours as a best-effort JSONB holder
-          opening_hours = { _sync: syncMeta };
-        }
   
         // Debug: log photo values computed for this place so we can diagnose why
         // photo columns may be empty after a test sync.
@@ -295,6 +324,7 @@ export async function upsertShopsBatch(
           status: "active",
           last_updated: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          sync_metadata
         };
       });
 

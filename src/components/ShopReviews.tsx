@@ -1,27 +1,15 @@
 'use client';
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/src/lib/supabase";
-
-type Review = {
-  id: string;
-  user_id: string;
-  rating: number | null;
-  review_text: string | null;
-  created_at: string | null;
-  coffee_quality_rating?: number | null;
-  atmosphere_rating?: number | null;
-  noise_level_rating?: number | null;
-  wifi_quality_rating?: number | null;
-  work_friendliness_rating?: number | null;
-  service_rating?: number | null;
-};
+import { ShopReview } from "@/src/types";
+import ShopReviewItem from "./ShopReviewItem";
 
 type Props = {
   shopId: string;
 };
 
 export default function ShopReviews({ shopId }: Props) {
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ShopReview[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +40,7 @@ export default function ShopReviews({ shopId }: Props) {
         // Fetch reviews for this shop (include all criteria)
         const rev = await supabase
           .from("shop_reviews")
-          .select("id,user_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
+          .select("id,user_id,shop_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
           .eq("shop_id", shopId)
           .order("created_at", { ascending: false });
 
@@ -61,7 +49,7 @@ export default function ShopReviews({ shopId }: Props) {
           setError(String(rev.error));
           setReviews([]);
         } else {
-          setReviews(Array.isArray(rev.data) ? (rev.data as Review[]) : []);
+          setReviews(Array.isArray(rev.data) ? (rev.data as ShopReview[]) : []);
         }
 
         // If user is signed in, fetch their review (to prefill form)
@@ -139,12 +127,12 @@ export default function ShopReviews({ shopId }: Props) {
       // Re-fetch reviews (include criteria)
       const rev = await supabase
         .from("shop_reviews")
-        .select("id,user_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
+        .select("id,user_id,shop_id,rating,review_text,created_at,coffee_quality_rating,atmosphere_rating,noise_level_rating,wifi_quality_rating,work_friendliness_rating,service_rating")
         .eq("shop_id", shopId)
         .order("created_at", { ascending: false });
 
       if (!rev.error && Array.isArray(rev.data)) {
-        setReviews(rev.data as Review[]);
+        setReviews(rev.data as ShopReview[]);
       }
 
       // Notify other UI (map) to refresh averages
@@ -410,28 +398,11 @@ export default function ShopReviews({ shopId }: Props) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {reviews.map((r) => (
-              <div key={r.id} style={{ padding: 12, background: "#fafafa", borderRadius: 8, border: "1px solid #eee" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: 700 }}>{r.user_id === userId ? "You" : `${r.user_id.substring(0, 6)}...`}</div>
-                  <div style={{ fontWeight: 700 }}>{r.rating != null ? `${r.rating} ★` : (r.coffee_quality_rating != null ? `${r.coffee_quality_rating} ★` : "")}</div>
-                </div>
-                {r.review_text ? <div style={{ marginTop: 8 }}>{r.review_text}</div> : null}
-
-                <div style={{ marginTop: 8, color: "#444", fontSize: 13 }}>
-                  {r.coffee_quality_rating != null ? <div>Coffee: <strong>{r.coffee_quality_rating} ★</strong></div> : null}
-                  {r.atmosphere_rating != null ? <div>Atmosphere: <strong>{r.atmosphere_rating} ★</strong></div> : null}
-                  {r.noise_level_rating != null ? <div>Noise level: <strong>{r.noise_level_rating}</strong></div> : null}
-                  {r.wifi_quality_rating != null ? <div>WiFi: <strong>{r.wifi_quality_rating} ★</strong></div> : null}
-                  {r.work_friendliness_rating != null ? <div>Work friendly: <strong>{r.work_friendliness_rating} ★</strong></div> : null}
-                  {r.service_rating != null ? <div>Service: <strong>{r.service_rating} ★</strong></div> : null}
-                </div>
-
-                {r.created_at ? (
-                  <div style={{ marginTop: 8, color: "#666", fontSize: 12 }}>
-                    {new Date(r.created_at).toLocaleString()}
-                  </div>
-                ) : null}
-              </div>
+              <ShopReviewItem
+                key={r.id}
+                review={r}
+                userId={userId}
+              />
             ))}
           </div>
         )}
