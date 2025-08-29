@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shop } from '@/src/types/shop';
 import Link from 'next/link';
 
@@ -9,10 +9,48 @@ interface ShopSidebarProps {
   onShopSelect: (shop: Shop) => void;
   isVisible: boolean;
   onToggle: () => void;
+  selectedShopId?: string | null;
 }
 
-export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle }: ShopSidebarProps) {
+export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, selectedShopId }: ShopSidebarProps) {
   const [expandedShopId, setExpandedShopId] = useState<string | null>(null);
+  const selectedShopRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Create a callback ref to handle the selected shop element
+  const getShopRef = (shopId: string) => (element: HTMLDivElement) => {
+    if (shopId === selectedShopId && element) {
+      selectedShopRef.current = element;
+    }
+  };
+  
+  // Update expanded shop when selectedShopId changes (e.g., from map marker click)
+  useEffect(() => {
+    if (selectedShopId) {
+      setExpandedShopId(selectedShopId);
+    }
+  }, [selectedShopId]);
+  
+  // Auto-scroll to selected shop when it changes
+  useEffect(() => {
+    if (selectedShopId && selectedShopRef.current && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const selectedElement = selectedShopRef.current;
+      
+      // Calculate the position of the selected element relative to the container
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = selectedElement.getBoundingClientRect();
+      
+      // Calculate the scroll position needed to center the element
+      const scrollTop = selectedElement.offsetTop - container.offsetTop - (containerRect.height / 2) + (elementRect.height / 2);
+      
+      // Scroll to the calculated position with smooth behavior
+      container.scrollTo({
+        top: scrollTop,
+        behavior: 'smooth'
+      });
+    }
+  }, [selectedShopId]);
 
   const toggleExpand = (shopId: string) => {
     setExpandedShopId(expandedShopId === shopId ? null : shopId);
@@ -49,7 +87,7 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle }
       </div>
 
       {/* Scrollable shop list */}
-      <div className="overflow-y-auto flex-grow">
+      <div ref={scrollContainerRef} className="overflow-y-auto flex-grow">
         {shops.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             No coffee shops found in the current view
@@ -59,7 +97,12 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle }
             {shops.map((shop) => (
               <li key={shop.id} className="border-b last:border-b-0">
                 <div 
-                  className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${expandedShopId === shop.id ? 'bg-gray-50' : ''}`}
+                  ref={getShopRef(shop.id)}
+                  className={`p-4 cursor-pointer transition-colors ${
+                    expandedShopId === shop.id ? 'bg-gray-50' : 'hover:bg-gray-50'
+                  } ${
+                    selectedShopId === shop.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                  }`}
                   onClick={() => {
                     toggleExpand(shop.id);
                     onShopSelect(shop);
@@ -67,7 +110,7 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle }
                 >
                   {/* Shop name and rating */}
                   <div className="flex justify-between items-start">
-                    <h3 className="font-medium">{shop.name || 'Unnamed shop'}</h3>
+                    <h3 className={`font-medium ${selectedShopId === shop.id ? 'text-blue-700' : ''}`}>{shop.name || 'Unnamed shop'}</h3>
                     {shop.avgRating !== null && (
                       <div className="flex items-center">
                         <span className="text-yellow-500 mr-1">★</span>

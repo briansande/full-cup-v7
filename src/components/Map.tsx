@@ -342,19 +342,30 @@ export default function Map() {
     }
   };
   
+  // Handle shop selection from map marker click
+  const handleMarkerClick = (shop: Shop) => {
+    setSelectedShopId(shop.id);
+    
+    // Pan map to selected shop
+    if (mapRef.current && shop.latitude !== null && shop.longitude !== null) {
+      mapRef.current.setView([shop.latitude, shop.longitude], mapRef.current.getZoom());
+    }
+  };
+  
   // Close sidebar
   const toggleSidebar = () => {
     setIsSidebarVisible(!isSidebarVisible);
   };
   
   return (
-    <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+    <div style={{ height: 'calc(100vh - 60px)', width: '100vw', position: 'fixed', top: 60, left: 0 }}>
       {/* Sidebar */}
       <ShopSidebar 
         shops={visibleShops}
         onShopSelect={handleShopSelect}
         isVisible={isSidebarVisible}
         onToggle={toggleSidebar}
+        selectedShopId={selectedShopId}
       />
       
       {/* Controls overlay */}
@@ -412,7 +423,7 @@ export default function Map() {
       <div
         style={{
           position: "absolute",
-          top: 76,
+          top: 16,
           left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
           zIndex: 1100,
           background: "rgba(255,255,255,0.95)",
@@ -429,7 +440,7 @@ export default function Map() {
         <div
           style={{
             position: "absolute",
-            top: 12,
+            top: 16,
             left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
             zIndex: 1000,
             background: "rgba(255,255,255,0.9)",
@@ -500,6 +511,11 @@ export default function Map() {
                   ref={(ref: any) => {
                     if (ref) {
                       markerRefs.current[s.id] = ref;
+                    }
+                  }}
+                  eventHandlers={{
+                    click: () => {
+                      handleMarkerClick(s);
                     }
                   }}
                 >

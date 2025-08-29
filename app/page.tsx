@@ -3,8 +3,6 @@ import Map from '@/src/components/Map';
 
 export default function Home() {
   return (
-    <div style={{ height: '100vh', width: '100%' }}>
-      <Map />
-    </div>
+    <Map />
   );
 }
