@@ -164,34 +164,39 @@ export async function syncHoustonCoffeeShops(limit = 8) {
       const name = p.displayName?.text || p.name || null;
       
       // Extract location, handling multiple shapes
-      let latitude = null;
-      let longitude = null;
+      let latitude: number | null = null;
+      let longitude: number | null = null;
       if (p.location) {
-        if (typeof p.location.latitude === "number" && typeof p.location.longitude === "number") {
+        // Check if it's the v1 shape with latitude/longitude
+        if ('latitude' in p.location && typeof p.location.latitude === "number" && 
+            'longitude' in p.location && typeof p.location.longitude === "number") {
           latitude = p.location.latitude;
           longitude = p.location.longitude;
-        } else if (typeof (p.location as any).lat === "number" && typeof (p.location as any).lng === "number") {
-          latitude = (p.location as any).lat;
-          longitude = (p.location as any).lng;
+        } 
+        // Check if it's the legacy shape with lat/lng
+        else if ('lat' in p.location && typeof (p.location as { lat?: number }).lat === "number" && 
+                 'lng' in p.location && typeof (p.location as { lng?: number }).lng === "number") {
+          latitude = (p.location as { lat?: number }).lat ?? null;
+          longitude = (p.location as { lng?: number }).lng ?? null;
         }
       }
-      if (!latitude && !longitude && p.geometry?.location) {
-        latitude = p.geometry.location.lat;
-        longitude = p.geometry.location.lng;
+      if ((!latitude && !longitude) && p.geometry?.location) {
+        latitude = p.geometry.location.lat ?? null;
+        longitude = p.geometry.location.lng ?? null;
       }
       
       // Extract address
-      const formatted_address = p.formattedAddress || p.formatted_address || null;
+      const formatted_address = p.formattedAddress || null;
       const address = p.vicinity || p.address || formatted_address;
       
       // Extract contact info
-      const phone = p.formatted_phone_number || p.nationalPhoneNumber || p.phone || null;
-      const website = p.website || p.websiteUri || null;
+      const phone = p.formatted_phone_number || p.nationalPhoneNumber || null;
+      const website = p.websiteUri || null;
       
       // Extract ratings and pricing
       const google_rating = typeof p.rating === "number" ? p.rating : null;
       const google_user_ratings_total = typeof p.userRatingCount === "number" ? p.userRatingCount : null;
-      const price_level = mapPriceLevel(typeof p.priceLevel === "number" ? p.priceLevel : p.price_level);
+      const price_level = mapPriceLevel(typeof p.priceLevel === "number" ? p.priceLevel : undefined);
       
       // Extract business status
       const businessStatus = p.businessStatus || "OPERATIONAL";
@@ -211,7 +216,7 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         google_rating: google_rating,
         google_user_ratings_total: google_user_ratings_total,
         price_level: price_level,
-        opening_hours: p.regularOpeningHours || p.currentOpeningHours || p.opening_hours || null,
+        opening_hours: p.regularOpeningHours || p.currentOpeningHours || null,
         photos: photos,
         // New photo-related fields
         google_photo_reference: google_photo_reference,

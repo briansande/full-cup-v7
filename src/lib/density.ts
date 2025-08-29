@@ -83,6 +83,38 @@ export type NearbyPlace = {
   nationalPhoneNumber?: string;
   internationalPhoneNumber?: string;
   shortFormattedAddress?: string;
+  vicinity?: string;
+  address?: string;
+  formatted_phone_number?: string;
+  website?: string;
+  price_level?: number;
+  opening_hours?: {
+    openNow?: boolean;
+    periods?: Array<{
+      open: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+      close?: {
+        day: number;
+        hour: number;
+        minute: number;
+      };
+    }>;
+    weekdayDescriptions?: string[];
+  };
+  photos?: Array<{
+    name?: string;
+    photo_reference?: string;
+    widthPx?: number;
+    heightPx?: number;
+    authorAttributions?: Array<{
+      displayName?: string;
+      uri?: string;
+      photoUri?: string;
+    }>;
+  }>;
 };
 
 export type NearbySearchResult = {

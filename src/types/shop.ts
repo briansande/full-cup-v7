@@ -21,6 +21,7 @@ export interface Shop {
   last_updated?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  sync_metadata?: any | null;
   avgRating?: number | null;
   avgCoffeeQuality?: number | null;
   avgAtmosphere?: number | null;

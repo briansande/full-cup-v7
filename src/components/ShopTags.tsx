@@ -109,40 +109,31 @@ export default function ShopTags({ shopId }: Props) {
       }
 
       // Create a shop_tags row for this user + tag + shop (upsert)
-      const up = await supabase
-        .from('shop_tags')
-        .upsert(
-          {
-            shop_id: shopId,
-            tag_id: tagId,
-            user_id: user.id,
-            created_at: new Date().toISOString(),
-          },
-          { onConflict: 'shop_id,tag_id,user_id' }
-        );
+        const up = await supabase
+          .from('shop_tags')
+          .upsert(
+            {
+              shop_id: shopId,
+              tag_id: tagId,
+              user_id: user.id,
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: 'shop_id,tag_id,user_id' }
+          );
 
-      if (up.error) throw up.error;
+        if (up.error) throw up.error;
 
-      // Automatically cast a thumbs-up vote when a user adds a tag for the first time
-      // Find the representative shop_tag (most voted) for this tag at this shop
-      let shopTagId: string | null = null;
-      const st = await supabase
-        .from('shop_tags')
-        .select('id')
-        .eq('shop_id', shopId)
-        .eq('tag_id', tagId)
-        .order('votes', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!st.error && st.data) {
-        shopTagId = String((st.data as any).id);
-      } else {
-        // If none found (shouldn't happen since upsert created one), try to get by the row returned from upsert
-        if (Array.isArray(up.data) && up.data.length > 0) {
-          shopTagId = String((up.data[0] as any).id);
-        }
-      }
+        // Automatically cast a thumbs-up vote when a user adds a tag for the first time
+        // Find the representative shop_tag (most voted) for this tag at this shop
+        let shopTagId: string | null = null;
+        const st = await supabase
+          .from('shop_tags')
+          .select('id')
+          .eq('shop_id', shopId)
+          .eq('tag_id', tagId)
+          .order('votes', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
       if (shopTagId) {
         // Insert or ignore existing vote

@@ -358,22 +358,22 @@ export async function runAdaptiveTestSync(options?: RunOptions): Promise<Adaptiv
     };
 
     // Decide whether to subdivide:
-    const rawCount = nearbyRes?.rawCount ?? (nearbyRes?.places?.length ?? 0);
+    const placeCount = nearbyRes?.places?.length ?? 0;
     // Prefer raw API response count to detect truncation (searchNearby maxResultCount = 20).
     // Also consider the pre-filter (deduplicated) count and original filter count so that
     // filtering does not prevent subdivision when the API returned a full page.
-    const hitLimit = nearbyRes?.hitLimit ?? rawCount >= 20;
+    const hitLimit = nearbyRes?.hitLimit ?? placeCount >= 20;
     // reachedBound when ANY of:
-    //  - raw API returned the page size (rawCount >= 20)
+    //  - raw API returned the page size (placeCount >= 20)
     //  - the deduplicated pre-filter count is >= 20
     //  - when filtering is enabled and we have stats, the original (pre-filter) count >= 20
     const reachedBound =
-      rawCount >= 20 ||
+      placeCount >= 20 ||
       preFilterCount >= 20 ||
       (enableFiltering && filterStats ? (filterStats.original ?? 0) >= 20 : false);
     if (debugLog) {
       console.log(
-        `[adaptive-search] ${task.id} counts: raw=${rawCount}, preFilter=${preFilterCount}, filtered=${resultCount}, hitLimit=${hitLimit}, reachedBound=${reachedBound}`
+        `[adaptive-search] ${task.id} counts: places=${placeCount}, preFilter=${preFilterCount}, filtered=${resultCount}, hitLimit=${hitLimit}, reachedBound=${reachedBound}`
       );
     }
 

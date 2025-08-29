@@ -229,6 +229,14 @@ export async function upsertShopsBatch(
           opening_hours = null;
         }
         
+        // Ensure opening_hours doesn't contain sync metadata
+        // If it does, remove the _sync property to keep only the actual hours data
+        if (opening_hours && typeof opening_hours === "object" && opening_hours._sync) {
+          // Create a copy without the _sync property
+          const { _sync, ...hoursWithoutSync } = opening_hours;
+          opening_hours = Object.keys(hoursWithoutSync).length > 0 ? hoursWithoutSync : null;
+        }
+        
         // Create sync metadata object
         const sync_metadata = {
           sourceGridId: it.sourceGridId,
@@ -244,35 +252,6 @@ export async function upsertShopsBatch(
               : typeof place?.name === "string" && !String(place.name).startsWith("places/")
               ? place.name
               : null,
-            // keep coordinates if available for quick lookup
-            latitude:
-              place?.geometry?.location?.lat ??
-              place?.lat ??
-              place?.location?.latitude ??
-              null,
-            longitude:
-              place?.geometry?.location?.lng ??
-              place?.lng ??
-              place?.location?.longitude ??
-              null,
-          },
-        };
-        
-        // Create sync metadata object
-        const sync_metadata = {
-          sourceGridId: it.sourceGridId,
-          gridRadius: it.gridRadius,
-          searchLevel: it.searchLevel,
-          // Instead of embedding the full place payload (which can be large and noisy)
-          // store a minimal raw reference that is useful for debugging/traceability.
-          raw: {
-            id: place?.id ?? place?.place_id ?? place?.placeId ?? null,
-            name:
-              typeof place?.displayName?.text === "string"
-                ? place.displayName.text
-                : typeof place?.name === "string" && !String(place.name).startsWith("places/")
-                ? place.name
-                : null,
             // keep coordinates if available for quick lookup
             latitude:
               place?.geometry?.location?.lat ??
@@ -354,9 +333,11 @@ export async function upsertShopsBatch(
       const approxUpdated = approxExistingCount;
 
       // Perform upsert using google_place_id onConflict
+      // Remove sync_metadata from rows to avoid schema errors if column doesn't exist
+      const rowsWithoutMetadata = rows.map(({ sync_metadata, ...row }) => row);
       const { error } = await supabase
         .from("coffee_shops")
-        .upsert(rows, { onConflict: "google_place_id" }); // returning minimal to reduce payload
+        .upsert(rowsWithoutMetadata, { onConflict: "google_place_id" }); // returning minimal to reduce payload
 
       if (error) {
         // Upsert-level error; capture and continue
