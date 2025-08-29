@@ -62,6 +62,19 @@ export default function Map() {
 
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(true);
+  
+  // Toggle right sidebar (shop cards)
+  const toggleSidebar = () => {
+    setIsSidebarVisible(!isSidebarVisible);
+  };
+  
+  // Toggle left sidebar (filters)
+  const toggleLeftSidebar = () => {
+    setIsLeftSidebarVisible(!isLeftSidebarVisible);
+  };
+  
+  // Toggle left sidebar (filters)
   
   // Refs for map markers and map instance
   const markerRefs = useRef<Record<string, any>>({});
@@ -353,13 +366,245 @@ export default function Map() {
   };
   
   // Close sidebar
-  const toggleSidebar = () => {
-    setIsSidebarVisible(!isSidebarVisible);
-  };
-  
+
+  // State for left sidebar visibility
+
   return (
-    <div style={{ height: 'calc(100vh - 60px)', width: '100vw', position: 'fixed', top: 60, left: 0 }}>
-      {/* Sidebar */}
+    <div className="h-[calc(100vh-60px)] w-full fixed top-[60px] left-0 flex">
+      {/* Left Filter Sidebar */}
+      {isLeftSidebarVisible && (
+        <div className="h-full z-[1100] bg-white shadow-lg flex flex-col w-80 cottage-map-container">
+          <div className="p-4 border-b border-[--cottage-neutral-light] flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-[--cottage-primary]">Filters</h2>
+            <button 
+              onClick={toggleLeftSidebar}
+              className="p-2 rounded-full hover:bg-[--cottage-secondary] transition-colors"
+              aria-label="Collapse filter panel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[--cottage-neutral-dark]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="overflow-y-auto flex-grow p-4">
+            <FilterControls
+              searchText={searchText}
+              setSearchText={setSearchText}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              dateDays={dateDays}
+              setDateDays={setDateDays}
+              DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
+              distanceActive={distanceActive}
+              setDistanceFilterEnabled={setDistanceFilterEnabled}
+              DISTANCE_OPTIONS={DISTANCE_OPTIONS}
+              distanceRadiusMiles={distanceRadiusMiles}
+              setDistanceRadiusMiles={setDistanceRadiusMiles}
+              userLocation={userLocation}
+              locationPermission={locationPermission}
+              locationError={locationError}
+              requestLocation={requestLocation}
+              clearFilters={clearFilters}
+              // Tag filter props
+              selectedTags={selectedTags}
+              setSelectedTags={setSelectedTags}
+              renderDebugButton={showDebugToggle ? (
+                <button
+                  onClick={async () => {
+                    const next = !debugVisible;
+                    setDebugVisible(next);
+                    // Lazy-generate grid points only when turning the overlay ON for the first time
+                    if (next && !debugPoints) {
+                      const pts = generateGrid('test');
+                      setDebugPoints(pts);
+                      // Log the required boundaries message when overlay is enabled
+                      console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                    debugVisible 
+                      ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
+                      : 'bg-white text-[--cottage-neutral-dark] border border-[--cottage-neutral-dark]/30 hover:shadow-md'
+                  }`}
+                  title="Toggle grid debug overlay (TEST MODE: 6 points)"
+                >
+                  {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
+                </button>
+              ) : null}
+            />
+          </div>
+        </div>
+      )}
+      
+      {/* Collapse/Expand Button - positioned at midpoint of sidebar */}
+      <button
+        onClick={toggleLeftSidebar}
+        className="absolute top-1/2 z-[1200] bg-white shadow-lg rounded-r-xl p-3 transform -translate-y-1/2 hover:bg-[--cottage-secondary] transition-all duration-200 border-l border-t border-b border-[--cottage-neutral-light]"
+        aria-label={isLeftSidebarVisible ? "Collapse filter panel" : "Expand filter panel"}
+        style={{ left: isLeftSidebarVisible ? '20rem' : '0' }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[--cottage-primary]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isLeftSidebarVisible ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
+        </svg>
+      </button>
+      
+      {/* Main Map Area */}
+      <div className="h-full flex-grow relative cottage-map-container">
+        {/* Filter count message */}
+        <div
+          className="absolute top-4 left-4 z-[1100] bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm text-[--cottage-neutral-dark] shadow-md"
+        >
+          {filterCountMessage}
+        </div>
+    
+        {loading ? (
+          <div
+            className="absolute top-4 left-4 z-[1000] bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm shadow-md flex items-center gap-2"
+          >
+            <div className="w-4 h-4 border-2 border-[--cottage-primary] border-t-transparent rounded-full animate-spin"></div>
+            Loading shops...
+          </div>
+        ) : null}
+    
+        <MapContainer
+          center={position}
+          zoom={12}
+          scrollWheelZoom={true}
+          className="h-full w-full"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          
+          {RL && <MapEvents updateBounds={updateMapBounds} />}
+    
+          {visibleShops && visibleShops.length > 0
+            ? visibleShops.map((s: Shop) => {
+                if (s.latitude == null || s.longitude == null) return null;
+                const pos: [number, number] = [s.latitude, s.longitude];
+
+                // If a shop is effectively at the user's location, skip rendering the shop marker
+                // so we don't show a duplicate marker beneath the user marker.
+                if (userLocation) {
+                  try {
+                    // If exact coordinates match, hide the shop marker immediately.
+                    if (s.latitude === userLocation.lat && s.longitude === userLocation.lng) return null;
+
+                    const dToUser = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
+                    // hide shops extremely close to user's marker (threshold in USER_HIDE_THRESHOLD_MILES)
+                    if (dToUser < USER_HIDE_THRESHOLD_MILES) return null;
+                  } catch {
+                    // ignore distance computation errors and continue rendering
+                  }
+                }
+    
+                // Pick correct icon for this shop's status
+                const statusKey = s.status ?? "default";
+                const iconInfo = ICONS[statusKey] ?? ICONS.default;
+                const icon = new L.Icon({
+                  iconUrl: iconInfo.iconUrl,
+                  iconRetinaUrl: iconInfo.iconRetinaUrl,
+                  shadowUrl,
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41]
+                });
+    
+                return (
+                  <Marker 
+                    key={s.id} 
+                    position={pos} 
+                    icon={icon}
+                    ref={(ref: any) => {
+                      if (ref) {
+                        markerRefs.current[s.id] = ref;
+                      }
+                    }}
+                    eventHandlers={{
+                      click: () => {
+                        handleMarkerClick(s);
+                      }
+                    }}
+                  >
+                    <Popup className="rounded-xl overflow-hidden shadow-lg">
+                      <div className="min-w-[160px] p-3">
+                        <div className="font-semibold text-[--cottage-primary]">{s.name ?? "Unnamed shop"}</div>
+      
+                          {distanceActive && (s as any)._distanceMiles != null ? (
+                            <div className="mt-2 text-sm">
+                              Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
+                            </div>
+                          ) : null}
+      
+                          {s.avgRating != null ? (
+                            <div className="mt-2">
+                              Overall: <strong className="text-yellow-600">{Number(s.avgRating).toFixed(1)} ★</strong>
+                            </div>
+                          ) : null}
+      
+                          <div className="mt-2 text-sm space-y-1">
+                            {s.avgCoffeeQuality != null ? <div>Coffee: <strong className="text-[--cottage-accent]">{Number(s.avgCoffeeQuality).toFixed(1)} ★</strong></div> : null}
+                            {s.avgAtmosphere != null ? <div>Atmosphere: <strong className="text-[--cottage-accent]">{Number(s.avgAtmosphere).toFixed(1)} ★</strong></div> : null}
+                            {s.avgNoiseLevel != null ? <div>Noise level: <strong className="text-[--cottage-terracotta]">{Number(s.avgNoiseLevel).toFixed(1)}</strong></div> : null}
+                            {s.avgWifiQuality != null ? <div>WiFi: <strong className="text-[--cottage-accent]">{Number(s.avgWifiQuality).toFixed(1)} ★</strong></div> : null}
+                            {s.avgWorkFriendliness != null ? <div>Work friendly: <strong className="text-[--cottage-accent]">{Number(s.avgWorkFriendliness).toFixed(1)} ★</strong></div> : null}
+                            {s.avgService != null ? <div>Service: <strong className="text-[--cottage-accent]">{Number(s.avgService).toFixed(1)} ★</strong></div> : null}
+                          </div>
+    
+                          {/* Top tags preview (2-3) */}
+                          {s.topTags && Array.isArray(s.topTags) && s.topTags.length > 0 ? (
+                            <div className="mt-3 flex gap-2 flex-wrap">
+                              {s.topTags.slice(0,3).map((t) => (
+                                <span key={t.tag_id} className="cottage-tag">
+                                  {t.tag_name}{t.total_votes > 0 ? ` +${t.total_votes}` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+    
+                          <div className="mt-3">
+                            <Link 
+                              href={`/shop/${s.id}`} 
+                              className="text-[--cottage-primary] hover:text-[--cottage-terracotta] font-medium text-sm transition-colors"
+                            >
+                              View Details
+                            </Link>
+                          </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })
+            : null}
+
+          {/* User location marker (rendered above other markers) */}
+          {userLocation ? (
+            <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} zIndexOffset={1000}>
+              <Popup className="rounded-lg">
+                <div className="min-w-[120px] p-2">
+                  <div className="font-semibold">You are here</div>
+                  <div className="text-sm text-gray-600">
+                    {locationPermission === 'granted' ? 'Location shared' : 'Location'}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ) : null}
+
+          {debugPoints ? (
+            <GridDebugOverlay
+              points={debugPoints}
+              visible={debugVisible}
+              modeLabel="TEST MODE: 6 points"
+            />
+          ) : null}
+        </MapContainer>
+      </div>
+      
+      {/* Right Shop Sidebar */}
       <ShopSidebar 
         shops={visibleShops}
         onShopSelect={handleShopSelect}
@@ -367,226 +612,6 @@ export default function Map() {
         onToggle={toggleSidebar}
         selectedShopId={selectedShopId}
       />
-      
-      {/* Controls overlay */}
-      <FilterControls
-        searchText={searchText}
-        setSearchText={setSearchText}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        dateDays={dateDays}
-        setDateDays={setDateDays}
-        DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
-        distanceActive={distanceActive}
-        setDistanceFilterEnabled={setDistanceFilterEnabled}
-        DISTANCE_OPTIONS={DISTANCE_OPTIONS}
-        distanceRadiusMiles={distanceRadiusMiles}
-        setDistanceRadiusMiles={setDistanceRadiusMiles}
-        userLocation={userLocation}
-        locationPermission={locationPermission}
-        locationError={locationError}
-        requestLocation={requestLocation}
-        clearFilters={clearFilters}
-        // Tag filter props
-        selectedTags={selectedTags}
-        setSelectedTags={setSelectedTags}
-        renderDebugButton={showDebugToggle ? (
-          <button
-            onClick={async () => {
-              const next = !debugVisible;
-              setDebugVisible(next);
-              // Lazy-generate grid points only when turning the overlay ON for the first time
-              if (next && !debugPoints) {
-                const pts = generateGrid('test');
-                setDebugPoints(pts);
-                // Log the required boundaries message when overlay is enabled
-                console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
-              }
-            }}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: debugVisible ? "1px solid #111827" : "1px solid #d1d5db",
-              background: debugVisible ? "#111827" : "#fff",
-              color: debugVisible ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            title="Toggle grid debug overlay (TEST MODE: 6 points)"
-          >
-            {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
-          </button>
-        ) : null}
-      />
-
-      {/* Filter count message */}
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
-          zIndex: 1100,
-          background: "rgba(255,255,255,0.95)",
-          padding: "6px 10px",
-          borderRadius: 6,
-          fontSize: 12,
-          color: "#333",
-        }}
-      >
-        {filterCountMessage}
-      </div>
-  
-      {loading ? (
-        <div
-          style={{
-            position: "absolute",
-            top: 16,
-            left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
-            zIndex: 1000,
-            background: "rgba(255,255,255,0.9)",
-            padding: "6px 8px",
-            borderRadius: 6,
-            fontSize: 12,
-          }}
-        >
-          Loading shops...
-        </div>
-      ) : null}
-  
-      <MapContainer
-        center={position}
-        zoom={12}
-        scrollWheelZoom={true}
-        style={{ 
-          height: "100%", 
-          width: "100%",
-          marginLeft: isSidebarVisible ? '20rem' : '0' // Adjust for sidebar
-        }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {RL && <MapEvents updateBounds={updateMapBounds} />}
-  
-        {visibleShops && visibleShops.length > 0
-          ? visibleShops.map((s: Shop) => {
-              if (s.latitude == null || s.longitude == null) return null;
-              const pos: [number, number] = [s.latitude, s.longitude];
-
-              // If a shop is effectively at the user's location, skip rendering the shop marker
-              // so we don't show a duplicate marker beneath the user marker.
-              if (userLocation) {
-                try {
-                  // If exact coordinates match, hide the shop marker immediately.
-                  if (s.latitude === userLocation.lat && s.longitude === userLocation.lng) return null;
-
-                  const dToUser = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
-                  // hide shops extremely close to user's marker (threshold in USER_HIDE_THRESHOLD_MILES)
-                  if (dToUser < USER_HIDE_THRESHOLD_MILES) return null;
-                } catch {
-                  // ignore distance computation errors and continue rendering
-                }
-              }
-  
-              // Pick correct icon for this shop's status
-              const statusKey = s.status ?? "default";
-              const iconInfo = ICONS[statusKey] ?? ICONS.default;
-              const icon = new L.Icon({
-                iconUrl: iconInfo.iconUrl,
-                iconRetinaUrl: iconInfo.iconRetinaUrl,
-                shadowUrl,
-                iconSize: [25, 41],
-                iconAnchor: [12, 41],
-                popupAnchor: [1, -34],
-                shadowSize: [41, 41],
-              });
-  
-              return (
-                <Marker 
-                  key={s.id} 
-                  position={pos} 
-                  icon={icon}
-                  ref={(ref: any) => {
-                    if (ref) {
-                      markerRefs.current[s.id] = ref;
-                    }
-                  }}
-                  eventHandlers={{
-                    click: () => {
-                      handleMarkerClick(s);
-                    }
-                  }}
-                >
-                  <Popup>
-                    <div style={{ minWidth: 160 }}>
-                      <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
-    
-                        {distanceActive && (s as any)._distanceMiles != null ? (
-                          <div style={{ marginTop: 6 }}>
-                            Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
-                          </div>
-                        ) : null}
-    
-                        {s.avgRating != null ? (
-                          <div style={{ marginTop: 6 }}>
-                            Overall: <strong>{Number(s.avgRating).toFixed(1)} ★</strong>
-                          </div>
-                        ) : null}
-    
-                        <div style={{ marginTop: 6, fontSize: 13 }}>
-                          {s.avgCoffeeQuality != null ? <div>Coffee: <strong>{Number(s.avgCoffeeQuality).toFixed(1)} ★</strong></div> : null}
-                          {s.avgAtmosphere != null ? <div>Atmosphere: <strong>{Number(s.avgAtmosphere).toFixed(1)} ★</strong></div> : null}
-                          {s.avgNoiseLevel != null ? <div>Noise level: <strong>{Number(s.avgNoiseLevel).toFixed(1)}</strong></div> : null}
-                          {s.avgWifiQuality != null ? <div>WiFi: <strong>{Number(s.avgWifiQuality).toFixed(1)} ★</strong></div> : null}
-                          {s.avgWorkFriendliness != null ? <div>Work friendly: <strong>{Number(s.avgWorkFriendliness).toFixed(1)} ★</strong></div> : null}
-                          {s.avgService != null ? <div>Service: <strong>{Number(s.avgService).toFixed(1)} ★</strong></div> : null}
-                        </div>
-  
-                        {/* Top tags preview (2-3) */}
-                        {s.topTags && Array.isArray(s.topTags) && s.topTags.length > 0 ? (
-                          <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {s.topTags.slice(0,3).map((t) => (
-                              <span key={t.tag_id} style={{ padding: '4px 8px', borderRadius: 999, background: '#f3f4f6', fontSize: 13 }}>
-                                {t.tag_name}{t.total_votes > 0 ? ` +${t.total_votes}` : ''}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-  
-                        <div style={{ marginTop: 6 }}>
-                          <Link href={`/shop/${s.id}`}>View Details</Link>
-                        </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })
-          : null}
-
-        {/* User location marker (rendered above other markers) */}
-        {userLocation ? (
-          <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} zIndexOffset={1000}>
-            <Popup>
-              <div style={{ minWidth: 120 }}>
-                <div style={{ fontWeight: 600 }}>You are here</div>
-                <div style={{ fontSize: 13, color: '#666' }}>
-                  {locationPermission === 'granted' ? 'Location shared' : 'Location'}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
-        ) : null}
-
-        {debugPoints ? (
-          <GridDebugOverlay
-            points={debugPoints}
-            visible={debugVisible}
-            modeLabel="TEST MODE: 6 points"
-          />
-        ) : null}
-      </MapContainer>
     </div>
   );
 }

@@ -113,17 +113,17 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
   }
 
   return (
-    <div style={{ minWidth: 240, maxWidth: 420 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="min-w-[240px] max-w-[420px]">
+      <div className="flex gap-2 items-center flex-wrap">
         {/* Selected tags as pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+        <div className="flex gap-2 flex-wrap items-center flex-1">
           {(selectedTags || []).map((tid) => (
-            <div key={tid} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '6px 8px', borderRadius: 999, background: '#f3f4f6', fontSize: 13 }}>
-              <div style={{ fontWeight: 600 }}>{selectedTagDetails[tid] ?? tid}</div>
+            <div key={tid} className="cottage-tag inline-flex gap-2 items-center">
+              <div className="font-medium">{selectedTagDetails[tid] ?? tid}</div>
               <button
                 aria-label={`Remove tag ${selectedTagDetails[tid] ?? tid}`}
                 onClick={() => removeTag(tid)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                className="bg-none border-none cursor-pointer text-[--cottage-neutral-dark] hover:text-red-500"
                 type="button"
               >
                 ×
@@ -136,34 +136,29 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
             placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            style={{ padding: 8, borderRadius: 8, border: '1px solid #d1d5db', minWidth: 160, flex: '1 1 160px' }}
+            className="cottage-input py-2 flex-1 min-w-[160px]"
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div className="flex gap-2 items-center">
           <button
             onClick={clearAll}
             type="button"
-            style={{
-              padding: '8px 10px',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              background: '#fff',
-              color: '#111827',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cottage-button px-3 py-2 hover:bg-[--cottage-secondary]/50"
           >
             Clear
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 8 }}>
-        {searching ? <div style={{ fontSize: 13, color: '#666' }}>Searching…</div> : null}
-        {error ? <div style={{ fontSize: 13, color: 'red' }}>{error}</div> : null}
+      <div className="mt-2">
+        {searching ? <div className="text-sm text-[--cottage-neutral-dark]/70 flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-[--cottage-primary] border-t-transparent rounded-full animate-spin"></div>
+          Searching…
+        </div> : null}
+        {error ? <div className="text-sm text-red-600">{error}</div> : null}
         {results && results.length > 0 ? (
-          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="mt-2 flex flex-col gap-1.5">
             {results.map((r) => {
               const already = (selectedTags || []).some((t) => String(t) === String(r.id));
               return (
@@ -172,14 +167,11 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
                   type="button"
                   onClick={() => addTag(r.id, r.name)}
                   disabled={already}
-                  style={{
-                    textAlign: 'left',
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    border: '1px solid #e5e7eb',
-                    background: already ? '#f9fafb' : '#fff',
-                    cursor: already ? 'not-allowed' : 'pointer',
-                  }}
+                  className={`text-left px-2 py-1.5 rounded-lg border ${
+                    already 
+                      ? 'bg-[--cottage-secondary] border-[--cottage-accent]' 
+                      : 'bg-white border-[--cottage-neutral-light]'
+                  } ${already ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-[--cottage-secondary]/50'}`}
                 >
                   {r.name} {already ? '✓' : ''}
                 </button>

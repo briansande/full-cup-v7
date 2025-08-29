@@ -1,84 +1,115 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --coffee-brown: #8B4513;
-  --cream: #F5F5DC;
-  --soft-green: #90EE90;
-  --bg: var(--cream);
-  --fg: #3b2f2f;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f0f0f;
-    --fg: #efeae5;
-  }
-}
-
-body {
-  background-color: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
-}
-
-/* Simple helpers for the Full Cup styling */
-.fullcup-hero {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-.fullcup-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.5));
-  border-radius: 1rem;
-  padding: 2rem;
-  box-shadow: 0 8px 24px rgba(139,69,19,0.12);
-  border: 1px solid rgba(139,69,19,0.08);
-  max-width: 900px;
-  width: 100%;
-  text-align: center;
-}
-.fullcup-title {
-  color: var(--coffee-brown);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.fullcup-subtitle {
-  color: #5b4638;
-  margin-top: 0.5rem;
-}
-.fullcup-accent {
-  color: var(--soft-green);
-}
 @import "tailwindcss";
 
+/* Cottagecore-inspired color palette */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  /* Primary cottagecore colors */
+  --cottage-primary: #8B4513; /* Warm brown (coffee) */
+  --cottage-secondary: #F5F5DC; /* Cream */
+  --cottage-accent: #8FBC8F; /* Sage green */
+  --cottage-neutral-light: #F8F4E9; /* Warm off-white */
+  --cottage-neutral-dark: #5C4033; /* Darker brown */
+  --cottage-terracotta: #CC7357; /* Soft terracotta */
+  --cottage-success: #8FBC8F; /* Sage green */
+  --cottage-warning: #D2691E; /* Chocolate brown */
+  
+  /* Background and text colors */
+  --background: var(--cottage-neutral-light);
+  --foreground: #3b2f2f;
+  
+  /* Font families */
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #e0d6c9;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Cottagecore styling utilities */
+.cottage-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
+  border: 1px solid rgba(139, 69, 19, 0.1);
+  transition: all 0.2s ease;
+}
+
+.cottage-card:hover {
+  box-shadow: 0 6px 16px rgba(139, 69, 19, 0.15);
+  transform: translateY(-2px);
+}
+
+.cottage-button {
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  border: 1px solid var(--cottage-neutral-dark);
+  background: var(--cottage-secondary);
+  color: var(--cottage-neutral-dark);
+  cursor: pointer;
+}
+
+.cottage-button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);
+}
+
+.cottage-button:active {
+  transform: scale(0.98);
+}
+
+.cottage-button-primary {
+  background: var(--cottage-primary);
+  color: white;
+  border-color: var(--cottage-primary);
+}
+
+.cottage-button-secondary {
+  background: var(--cottage-accent);
+  color: white;
+  border-color: var(--cottage-accent);
+}
+
+.cottage-input {
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1c5b5;
+  background: rgba(255, 255, 255, 0.7);
+  transition: all 0.15s ease;
+}
+
+.cottage-input:focus {
+  outline: none;
+  border-color: var(--cottage-primary);
+  box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.1);
+}
+
+.cottage-tag {
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--cottage-secondary);
+  border: 1px solid #e6dccf;
+}
+
+.cottage-map-container {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(139, 69, 19, 0.15);
+  border: 1px solid rgba(139, 69, 19, 0.1);
 }
 
 /* Leaflet marker fallback: hide broken image placeholder and show a simple dot marker */

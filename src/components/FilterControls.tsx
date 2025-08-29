@@ -56,116 +56,75 @@ export default function FilterControls(props: Props) {
   } = props;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: 12,
-        left: 12,
-        zIndex: 1100,
-        background: "rgba(255,255,255,0.95)",
-        padding: 12,
-        borderRadius: 8,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-        flexWrap: "wrap",
-      }}
-    >
+    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-md flex gap-2 items-center flex-wrap max-w-[90vw] w-full">
       <input
         aria-label="Search shops"
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         placeholder="Search shops by name"
-        style={{
-          padding: "8px 10px",
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          minWidth: 220,
-          outline: "none",
-        }}
+        className="cottage-input min-w-[200px]"
       />
 
       {/* Tag selector — searchable, multi-select. Uses AND logic (shop must have all selected tags) */}
-      <div style={{ marginLeft: 6 }}>
+      <div className="ml-1">
         <TagSelector selectedTags={selectedTags} setSelectedTags={setSelectedTags} placeholder="Filter by tags…" />
       </div>
 
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="flex gap-2 items-center flex-wrap">
         <button
           onClick={() => setStatusFilter(null)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: statusFilter === null ? "1px solid #111827" : "1px solid #d1d5db",
-            background: statusFilter === null ? "#111827" : "#fff",
-            color: statusFilter === null ? "#fff" : "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`cottage-button px-3 py-2 ${
+            statusFilter === null 
+              ? 'bg-[--cottage-primary] text-white border-[--cottage-primary]' 
+              : 'hover:bg-[--cottage-secondary]/50'
+          }`}
         >
           All
         </button>
         <button
           onClick={() => setStatusFilter("want_to_try")}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: statusFilter === "want_to_try" ? "1px solid #3b82f6" : "1px solid #d1d5db",
-            background: statusFilter === "want_to_try" ? "#3b82f6" : "#fff",
-            color: statusFilter === "want_to_try" ? "#fff" : "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`cottage-button px-3 py-2 ${
+            statusFilter === "want_to_try" 
+              ? 'bg-blue-500 text-white border-blue-500' 
+              : 'hover:bg-blue-50'
+          }`}
         >
           Want to Try
         </button>
         <button
           onClick={() => setStatusFilter("visited")}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: statusFilter === "visited" ? "1px solid #10b981" : "1px solid #d1d5db",
-            background: statusFilter === "visited" ? "#10b981" : "#fff",
-            color: statusFilter === "visited" ? "#fff" : "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`cottage-button px-3 py-2 ${
+            statusFilter === "visited" 
+              ? 'bg-green-500 text-white border-green-500' 
+              : 'hover:bg-green-50'
+          }`}
         >
           Visited
         </button>
         <button
           onClick={() => setStatusFilter("favorite")}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: statusFilter === "favorite" ? "1px solid #ef4444" : "1px solid #d1d5db",
-            background: statusFilter === "favorite" ? "#ef4444" : "#fff",
-            color: statusFilter === "favorite" ? "#fff" : "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`cottage-button px-3 py-2 ${
+            statusFilter === "favorite" 
+              ? 'bg-red-500 text-white border-red-500' 
+              : 'hover:bg-red-50'
+          }`}
         >
           Favorites
         </button>
       </div>
 
       {/* Date filter: Show New Shops */}
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
-        <div style={{ color: "#666", fontSize: 13, marginRight: 6 }}>Show New Shops</div>
+      <div className="flex gap-2 items-center flex-wrap ml-1">
+        <div className="text-[--cottage-neutral-dark]/70 text-sm">Show New Shops</div>
         {DATE_FILTER_OPTIONS.map((opt) => (
           <button
             key={opt.days}
             onClick={() => setDateDays(opt.days)}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: dateDays === opt.days ? "2px solid #111827" : "1px solid #d1d5db",
-              background: dateDays === opt.days ? "#111827" : "#fff",
-              color: dateDays === opt.days ? "#fff" : "#111827",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className={`cottage-button px-3 py-2 ${
+              dateDays === opt.days 
+                ? 'bg-[--cottage-neutral-dark] text-white border-[--cottage-neutral-dark]' 
+                : 'hover:bg-[--cottage-secondary]/50'
+            }`}
             aria-pressed={dateDays === opt.days}
           >
             {opt.label}
@@ -173,14 +132,7 @@ export default function FilterControls(props: Props) {
         ))}
         <button
           onClick={() => setDateDays(null)}
-          style={{
-            padding: "6px 8px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            background: "#fff",
-            color: "#666",
-            cursor: "pointer",
-          }}
+          className="cottage-button px-2 py-1.5 text-[--cottage-neutral-dark]/70 hover:bg-[--cottage-secondary]/50"
           title="Clear date filter"
         >
           Clear
@@ -188,8 +140,8 @@ export default function FilterControls(props: Props) {
       </div>
 
       {/* Near Me / Distance filter (dropdown) */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: 6 }}>
-        <div style={{ color: "#666", fontSize: 13 }}>Near Me</div>
+      <div className="flex gap-2 items-center flex-wrap ml-1">
+        <div className="text-[--cottage-neutral-dark]/70 text-sm">Near Me</div>
 
         <select
           aria-label="Distance filter"
@@ -205,15 +157,11 @@ export default function FilterControls(props: Props) {
               if (!userLocation) requestLocation();
             }
           }}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 6,
-            border: distanceActive ? "2px solid #111827" : "1px solid #d1d5db",
-            background: "#fff",
-            color: "#111827",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`cottage-input ${
+            distanceActive 
+              ? 'border-2 border-[--cottage-neutral-dark]' 
+              : ''
+          }`}
         >
           <option value="off">Off</option>
           {DISTANCE_OPTIONS.map((m) => (
@@ -225,19 +173,32 @@ export default function FilterControls(props: Props) {
 
         {/* Permission / status message */}
         {distanceActive && locationPermission === "denied" ? (
-          <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
-            Location denied. <button onClick={() => requestLocation()} style={{ textDecoration: "underline", background: "none", border: "none", color: "#111827", cursor: "pointer" }}>Retry</button>
+          <div className="text-red-600 text-sm ml-1 flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Location denied. 
+            <button 
+              onClick={() => requestLocation()} 
+              className="underline bg-none border-none text-[--cottage-neutral-dark] cursor-pointer hover:text-[--cottage-primary]"
+            >
+              Retry
+            </button>
           </div>
         ) : null}
 
         {distanceActive && locationPermission === "prompt" ? (
-          <div style={{ color: "#666", fontSize: 13, marginLeft: 6 }}>
+          <div className="text-[--cottage-neutral-dark]/70 text-sm ml-1 flex items-center gap-1">
+            <div className="w-3 h-3 border-2 border-[--cottage-primary] border-t-transparent rounded-full animate-spin"></div>
             Requesting location...
           </div>
         ) : null}
 
         {distanceActive && locationError ? (
-          <div style={{ color: "#b91c1c", fontSize: 13, marginLeft: 6 }}>
+          <div className="text-red-600 text-sm ml-1 flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {locationError}
           </div>
         ) : null}
@@ -245,15 +206,7 @@ export default function FilterControls(props: Props) {
 
       <button
         onClick={clearFilters}
-        style={{
-          padding: "8px 10px",
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          background: "#fff",
-          color: "#111827",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
+        className="cottage-button px-3 py-2 hover:bg-[--cottage-secondary]/50"
       >
         Clear Filters
       </button>

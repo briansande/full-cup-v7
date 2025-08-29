@@ -32,19 +32,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <header className="border-b">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ fontWeight: 600 }}>Full Cup</div>
-              <nav>
-                <Link href="/" style={{ marginRight: 12 }}>Map</Link>
-                <Link href="/random" style={{ marginRight: 12 }}>Random</Link>
-                <Link href="/new-shops">New Shops</Link>
+        <header className="border-b bg-[--cottage-secondary] border-[--cottage-neutral-dark]/20">
+          <div className="flex justify-between items-center p-3">
+            <div className="flex items-center gap-4">
+              <div className="font-semibold text-[--cottage-primary] text-xl">☕ Full Cup</div>
+              <nav className="flex gap-4">
+                <Link href="/" className="px-3 py-1 rounded-lg hover:bg-[--cottage-accent]/20 transition-colors">Map</Link>
+                <Link href="/random" className="px-3 py-1 rounded-lg hover:bg-[--cottage-accent]/20 transition-colors">Random</Link>
+                <Link href="/new-shops" className="px-3 py-1 rounded-lg hover:bg-[--cottage-accent]/20 transition-colors">New Shops</Link>
               </nav>
             </div>
  
             {/* Auth component shows login/signup forms or the user's email when signed in */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="flex items-center gap-3">
               <AchievementNavBadge />
               <Auth />
             </div>
