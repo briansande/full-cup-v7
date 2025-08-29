@@ -8,6 +8,13 @@ import { generateGrid, GridPoint } from "@/src/lib/grid";
 import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
 import { Shop } from "@/src/types";
 import ShopSidebar from "@/src/components/ShopSidebar";
+import MapFilterControls from "@/src/components/MapFilterControls";
+import FilterCountMessage from "@/src/components/FilterCountMessage";
+import MapLoadingIndicator from "@/src/components/MapLoadingIndicator";
+import MapEvents from "@/src/components/MapEvents";
+import ShopMarker from "@/src/components/ShopMarker";
+import UserLocationMarker from "@/src/components/UserLocationMarker";
+import { distanceMiles } from "@/src/lib/distance";
 
 /**
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
@@ -74,8 +81,6 @@ export default function Map() {
     setIsLeftSidebarVisible(!isLeftSidebarVisible);
   };
   
-  // Toggle left sidebar (filters)
-  
   // Refs for map markers and map instance
   const markerRefs = useRef<Record<string, any>>({});
   const mapRef = useRef<any>(null);
@@ -84,25 +89,6 @@ export default function Map() {
   // so the user's circular location indicator is the only visible marker. Value is miles.
   // Increased threshold to 0.2 miles (~320 meters) to avoid duplicate markers showing.
   const USER_HIDE_THRESHOLD_MILES = 0.2;
-
-  // Haversine formula to compute distance in miles between two lat/lng pairs
-  function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const toRad = (v: number) => (v * Math.PI) / 180;
-    const R = 6371e3; // metres
-    const φ1 = toRad(lat1);
-    const φ2 = toRad(lat2);
-    const Δφ = toRad(lat2 - lat1);
-    const Δλ = toRad(lon2 - lon1);
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    const meters = R * c;
-    const miles = meters / 1609.344;
-    return miles;
-  }
 
   // Location and distance filter logic moved to shared useFilters hook.
   // Shared filter hook state & actions
@@ -265,40 +251,6 @@ export default function Map() {
     };
   }, []);
 
-  // MapEvents component to handle map events (fixed to prevent infinite re-renders)
-  function MapEvents({ updateBounds }: { updateBounds: (bounds: any) => void }) {
-    const map = RL?.useMap();
-    
-    useEffect(() => {
-      if (!map) return;
-      
-      // Store the map instance for later use
-      mapRef.current = map;
-      
-      // Attach event listeners
-      const handleBoundsUpdate = () => {
-        if (mapRef.current) {
-          const newBounds = mapRef.current.getBounds();
-          updateBounds(newBounds);
-        }
-      };
-      
-      // Set initial bounds
-      handleBoundsUpdate();
-      
-      map.on('moveend', handleBoundsUpdate);
-      map.on('zoomend', handleBoundsUpdate);
-      
-      // Cleanup
-      return () => {
-        map.off('moveend', handleBoundsUpdate);
-        map.off('zoomend', handleBoundsUpdate);
-      };
-    }, [map, updateBounds]); // Include updateBounds in dependencies since it's stable
-    
-    return null;
-  }
-
   if (!RL) {
     return (
       <div style={{ height: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -307,7 +259,7 @@ export default function Map() {
     );
   }
 
-  const { MapContainer, TileLayer, Marker, Popup, L } = RL;
+  const { MapContainer, TileLayer, Marker, Popup, L, useMap } = RL;
   
   // Icon sources for colored markers (from pointhi/leaflet-color-markers)
   const ICONS: Record<string, { iconUrl: string; iconRetinaUrl: string }> = {
@@ -331,15 +283,6 @@ export default function Map() {
   
   const shadowUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
 
-  // Icon for user's current location — circular div similar to Google Maps
-  const userIcon = new L.DivIcon({
-    html: `<div style="width:16px;height:16px;border-radius:50%;background:#1e88e5;box-shadow:0 0 8px rgba(30,136,229,0.6);border:3px solid rgba(255,255,255,0.95)"></div>`,
-    className: '',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    popupAnchor: [0, -11],
-  });
-  
   // Handle shop selection from sidebar
   const handleShopSelect = (shop: Shop) => {
     setSelectedShopId(shop.id);
@@ -364,108 +307,68 @@ export default function Map() {
       mapRef.current.setView([shop.latitude, shop.longitude], mapRef.current.getZoom());
     }
   };
-  
-  // Close sidebar
-
-  // State for left sidebar visibility
 
   return (
     <div className="h-[calc(100vh-60px)] w-full fixed top-[60px] left-0 flex">
       {/* Left Filter Sidebar */}
-      {isLeftSidebarVisible && (
-        <div className="h-full z-[1100] bg-white shadow-lg flex flex-col w-80 cottage-map-container">
-          <div className="p-4 border-b border-[--cottage-neutral-light] flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-[--cottage-primary]">Filters</h2>
-            <button 
-              onClick={toggleLeftSidebar}
-              className="p-2 rounded-full hover:bg-[--cottage-secondary] transition-colors"
-              aria-label="Collapse filter panel"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[--cottage-neutral-dark]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div className="overflow-y-auto flex-grow p-4">
-            <FilterControls
-              searchText={searchText}
-              setSearchText={setSearchText}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              dateDays={dateDays}
-              setDateDays={setDateDays}
-              DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
-              distanceActive={distanceActive}
-              setDistanceFilterEnabled={setDistanceFilterEnabled}
-              DISTANCE_OPTIONS={DISTANCE_OPTIONS}
-              distanceRadiusMiles={distanceRadiusMiles}
-              setDistanceRadiusMiles={setDistanceRadiusMiles}
-              userLocation={userLocation}
-              locationPermission={locationPermission}
-              locationError={locationError}
-              requestLocation={requestLocation}
-              clearFilters={clearFilters}
-              // Tag filter props
-              selectedTags={selectedTags}
-              setSelectedTags={setSelectedTags}
-              renderDebugButton={showDebugToggle ? (
-                <button
-                  onClick={async () => {
-                    const next = !debugVisible;
-                    setDebugVisible(next);
-                    // Lazy-generate grid points only when turning the overlay ON for the first time
-                    if (next && !debugPoints) {
-                      const pts = generateGrid('test');
-                      setDebugPoints(pts);
-                      // Log the required boundaries message when overlay is enabled
-                      console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
-                    }
-                  }}
-                  className={`px-3 py-2 rounded-lg font-medium transition-all ${
-                    debugVisible 
-                      ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
-                      : 'bg-white text-[--cottage-neutral-dark] border border-[--cottage-neutral-dark]/30 hover:shadow-md'
-                  }`}
-                  title="Toggle grid debug overlay (TEST MODE: 6 points)"
-                >
-                  {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
-                </button>
-              ) : null}
-            />
-          </div>
-        </div>
-      )}
-      
-      {/* Collapse/Expand Button - positioned at midpoint of sidebar */}
-      <button
-        onClick={toggleLeftSidebar}
-        className="absolute top-1/2 z-[1200] bg-white shadow-lg rounded-r-xl p-3 transform -translate-y-1/2 hover:bg-[--cottage-secondary] transition-all duration-200 border-l border-t border-b border-[--cottage-neutral-light]"
-        aria-label={isLeftSidebarVisible ? "Collapse filter panel" : "Expand filter panel"}
-        style={{ left: isLeftSidebarVisible ? '20rem' : '0' }}
+      <MapFilterControls 
+        isLeftSidebarVisible={isLeftSidebarVisible}
+        toggleLeftSidebar={toggleLeftSidebar}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[--cottage-primary]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isLeftSidebarVisible ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
-        </svg>
-      </button>
+        <FilterControls
+          searchText={searchText}
+          setSearchText={setSearchText}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          dateDays={dateDays}
+          setDateDays={setDateDays}
+          DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
+          distanceActive={distanceActive}
+          setDistanceFilterEnabled={setDistanceFilterEnabled}
+          DISTANCE_OPTIONS={DISTANCE_OPTIONS}
+          distanceRadiusMiles={distanceRadiusMiles}
+          setDistanceRadiusMiles={setDistanceRadiusMiles}
+          userLocation={userLocation}
+          locationPermission={locationPermission}
+          locationError={locationError}
+          requestLocation={requestLocation}
+          clearFilters={clearFilters}
+          // Tag filter props
+          selectedTags={selectedTags}
+          setSelectedTags={setSelectedTags}
+          renderDebugButton={showDebugToggle ? (
+            <button
+              onClick={async () => {
+                const next = !debugVisible;
+                setDebugVisible(next);
+                // Lazy-generate grid points only when turning the overlay ON for the first time
+                if (next && !debugPoints) {
+                  const pts = generateGrid('test');
+                  setDebugPoints(pts);
+                  // Log the required boundaries message when overlay is enabled
+                  console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
+                }
+              }}
+              className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                debugVisible 
+                  ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
+                  : 'bg-white text-[--cottage-neutral-dark] border border-[--cottage-neutral-dark]/30 hover:shadow-md'
+              }`}
+              title="Toggle grid debug overlay (TEST MODE: 6 points)"
+            >
+              {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
+            </button>
+          ) : null}
+        />
+      </MapFilterControls>
       
       {/* Main Map Area */}
       <div className="h-full flex-grow relative cottage-map-container">
         {/* Filter count message */}
-        <div
-          className="absolute top-4 left-4 z-[1100] bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm text-[--cottage-neutral-dark] shadow-md"
-        >
-          {filterCountMessage}
-        </div>
+        <FilterCountMessage filterCountMessage={filterCountMessage} />
     
-        {loading ? (
-          <div
-            className="absolute top-4 left-4 z-[1000] bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm shadow-md flex items-center gap-2"
-          >
-            <div className="w-4 h-4 border-2 border-[--cottage-primary] border-t-transparent rounded-full animate-spin"></div>
-            Loading shops...
-          </div>
-        ) : null}
+        {/* Loading indicator */}
+        <MapLoadingIndicator loading={loading} />
     
         <MapContainer
           center={position}
@@ -478,7 +381,7 @@ export default function Map() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          {RL && <MapEvents updateBounds={updateMapBounds} />}
+          {RL && <MapEvents updateBounds={updateMapBounds} useMap={useMap} mapRef={mapRef} />}
     
           {visibleShops && visibleShops.length > 0
             ? visibleShops.map((s: Shop) => {
@@ -499,100 +402,29 @@ export default function Map() {
                     // ignore distance computation errors and continue rendering
                   }
                 }
-    
-                // Pick correct icon for this shop's status
-                const statusKey = s.status ?? "default";
-                const iconInfo = ICONS[statusKey] ?? ICONS.default;
-                const icon = new L.Icon({
-                  iconUrl: iconInfo.iconUrl,
-                  iconRetinaUrl: iconInfo.iconRetinaUrl,
-                  shadowUrl,
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                });
-    
+
                 return (
-                  <Marker 
-                    key={s.id} 
-                    position={pos} 
-                    icon={icon}
-                    ref={(ref: any) => {
-                      if (ref) {
-                        markerRefs.current[s.id] = ref;
-                      }
-                    }}
-                    eventHandlers={{
-                      click: () => {
-                        handleMarkerClick(s);
-                      }
-                    }}
-                  >
-                    <Popup className="rounded-xl overflow-hidden shadow-lg">
-                      <div className="min-w-[160px] p-3">
-                        <div className="font-semibold text-[--cottage-primary]">{s.name ?? "Unnamed shop"}</div>
-      
-                          {distanceActive && (s as any)._distanceMiles != null ? (
-                            <div className="mt-2 text-sm">
-                              Distance: <strong>{Number((s as any)._distanceMiles).toFixed(2)} mi</strong>
-                            </div>
-                          ) : null}
-      
-                          {s.avgRating != null ? (
-                            <div className="mt-2">
-                              Overall: <strong className="text-yellow-600">{Number(s.avgRating).toFixed(1)} ★</strong>
-                            </div>
-                          ) : null}
-      
-                          <div className="mt-2 text-sm space-y-1">
-                            {s.avgCoffeeQuality != null ? <div>Coffee: <strong className="text-[--cottage-accent]">{Number(s.avgCoffeeQuality).toFixed(1)} ★</strong></div> : null}
-                            {s.avgAtmosphere != null ? <div>Atmosphere: <strong className="text-[--cottage-accent]">{Number(s.avgAtmosphere).toFixed(1)} ★</strong></div> : null}
-                            {s.avgNoiseLevel != null ? <div>Noise level: <strong className="text-[--cottage-terracotta]">{Number(s.avgNoiseLevel).toFixed(1)}</strong></div> : null}
-                            {s.avgWifiQuality != null ? <div>WiFi: <strong className="text-[--cottage-accent]">{Number(s.avgWifiQuality).toFixed(1)} ★</strong></div> : null}
-                            {s.avgWorkFriendliness != null ? <div>Work friendly: <strong className="text-[--cottage-accent]">{Number(s.avgWorkFriendliness).toFixed(1)} ★</strong></div> : null}
-                            {s.avgService != null ? <div>Service: <strong className="text-[--cottage-accent]">{Number(s.avgService).toFixed(1)} ★</strong></div> : null}
-                          </div>
-    
-                          {/* Top tags preview (2-3) */}
-                          {s.topTags && Array.isArray(s.topTags) && s.topTags.length > 0 ? (
-                            <div className="mt-3 flex gap-2 flex-wrap">
-                              {s.topTags.slice(0,3).map((t) => (
-                                <span key={t.tag_id} className="cottage-tag">
-                                  {t.tag_name}{t.total_votes > 0 ? ` +${t.total_votes}` : ''}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-    
-                          <div className="mt-3">
-                            <Link 
-                              href={`/shop/${s.id}`} 
-                              className="text-[--cottage-primary] hover:text-[--cottage-terracotta] font-medium text-sm transition-colors"
-                            >
-                              View Details
-                            </Link>
-                          </div>
-                      </div>
-                    </Popup>
-                  </Marker>
+                  <ShopMarker
+                    key={s.id}
+                    shop={s}
+                    isSelected={selectedShopId === s.id}
+                    onClick={() => handleMarkerClick(s)}
+                    markerRefs={markerRefs}
+                    L={L}
+                    distanceActive={distanceActive}
+                    ICONS={ICONS}
+                    shadowUrl={shadowUrl}
+                  />
                 );
               })
             : null}
 
           {/* User location marker (rendered above other markers) */}
-          {userLocation ? (
-            <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} zIndexOffset={1000}>
-              <Popup className="rounded-lg">
-                <div className="min-w-[120px] p-2">
-                  <div className="font-semibold">You are here</div>
-                  <div className="text-sm text-gray-600">
-                    {locationPermission === 'granted' ? 'Location shared' : 'Location'}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ) : null}
+          <UserLocationMarker 
+            userLocation={userLocation} 
+            L={L}
+            locationPermission={locationPermission}
+          />
 
           {debugPoints ? (
             <GridDebugOverlay
