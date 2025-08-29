@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
 import useFilters from "@/src/hooks/useFilters";
@@ -7,6 +7,7 @@ import FilterControls from "@/src/components/FilterControls";
 import { generateGrid, GridPoint } from "@/src/lib/grid";
 import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
 import { Shop } from "@/src/types";
+import ShopSidebar from "@/src/components/ShopSidebar";
 
 /**
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
@@ -30,9 +31,42 @@ export default function Map() {
   Marker: any;
   Popup: any;
   L: any;
+  useMap: any;
 } | null>(null);
 
+  // Map bounds state
+  const [mapBounds, setMapBounds] = useState<any>(null);
   
+  // Stable callback to prevent infinite re-renders
+  const updateMapBounds = useCallback((newBounds: any) => {
+    setMapBounds((currentBounds: any) => {
+      // Only update if bounds have actually changed
+      if (!currentBounds || !newBounds) return newBounds;
+      
+      // Compare bounds to prevent unnecessary updates
+      const currentSW = currentBounds.getSouthWest();
+      const currentNE = currentBounds.getNorthEast();
+      const newSW = newBounds.getSouthWest();
+      const newNE = newBounds.getNorthEast();
+      
+      const threshold = 0.0001; // Small threshold to prevent micro-updates
+      const hasChanged = 
+        Math.abs(currentSW.lat - newSW.lat) > threshold ||
+        Math.abs(currentSW.lng - newSW.lng) > threshold ||
+        Math.abs(currentNE.lat - newNE.lat) > threshold ||
+        Math.abs(currentNE.lng - newNE.lng) > threshold;
+      
+      return hasChanged ? newBounds : currentBounds;
+    });
+  }, []);
+
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  
+  // Refs for map markers and map instance
+  const markerRefs = useRef<Record<string, any>>({});
+  const mapRef = useRef<any>(null);
+
   // If a shop is extremely close to the user's reported location, hide the shop marker
   // so the user's circular location indicator is the only visible marker. Value is miles.
   // Increased threshold to 0.2 miles (~320 meters) to avoid duplicate markers showing.
@@ -94,6 +128,7 @@ export default function Map() {
   // Move all useMemo hooks here, before any conditional returns
   const normalizedSearch = useMemo(() => searchText.trim().toLowerCase(), [searchText]);
   
+  // Filter shops based on all active filters
   const filteredShops = useMemo(() => {
     if (!shops || shops.length === 0) return [];
     
@@ -133,6 +168,28 @@ export default function Map() {
       return (s.name ?? "").toLowerCase().includes(normalizedSearch);
     });
   }, [shops, selectedTags, statusFilter, distanceActive, userLocation, distanceRadiusMiles, normalizedSearch]);
+
+  // Filter shops based on map bounds (what's visible)
+  const visibleShops = useMemo(() => {
+    // If we don't have map bounds yet, show all filtered shops (initial load)
+    if (!filteredShops || filteredShops.length === 0) return [];
+    if (!mapBounds) return filteredShops;
+    
+    return filteredShops.filter((s: Shop) => {
+      if (s.latitude == null || s.longitude == null) return false;
+      
+      // Check if shop is within map bounds
+      const lat = s.latitude;
+      const lng = s.longitude;
+      
+      return (
+        lat >= mapBounds.getSouthWest().lat &&
+        lat <= mapBounds.getNorthEast().lat &&
+        lng >= mapBounds.getSouthWest().lng &&
+        lng <= mapBounds.getNorthEast().lng
+      );
+    });
+  }, [filteredShops, mapBounds]);
 
   const filterCountMessage = useMemo(() => {
     const count = filteredShops ? filteredShops.length : 0;
@@ -185,6 +242,7 @@ export default function Map() {
         Marker: (mod as any).Marker,
         Popup: (mod as any).Popup,
         L,
+        useMap: (mod as any).useMap,
       });
     })();
 
@@ -193,6 +251,40 @@ export default function Map() {
       if (link.parentNode) link.parentNode.removeChild(link);
     };
   }, []);
+
+  // MapEvents component to handle map events (fixed to prevent infinite re-renders)
+  function MapEvents({ updateBounds }: { updateBounds: (bounds: any) => void }) {
+    const map = RL?.useMap();
+    
+    useEffect(() => {
+      if (!map) return;
+      
+      // Store the map instance for later use
+      mapRef.current = map;
+      
+      // Attach event listeners
+      const handleBoundsUpdate = () => {
+        if (mapRef.current) {
+          const newBounds = mapRef.current.getBounds();
+          updateBounds(newBounds);
+        }
+      };
+      
+      // Set initial bounds
+      handleBoundsUpdate();
+      
+      map.on('moveend', handleBoundsUpdate);
+      map.on('zoomend', handleBoundsUpdate);
+      
+      // Cleanup
+      return () => {
+        map.off('moveend', handleBoundsUpdate);
+        map.off('zoomend', handleBoundsUpdate);
+      };
+    }, [map, updateBounds]); // Include updateBounds in dependencies since it's stable
+    
+    return null;
+  }
 
   if (!RL) {
     return (
@@ -235,8 +327,36 @@ export default function Map() {
     popupAnchor: [0, -11],
   });
   
+  // Handle shop selection from sidebar
+  const handleShopSelect = (shop: Shop) => {
+    setSelectedShopId(shop.id);
+    
+    // Open popup for selected shop
+    if (markerRefs.current[shop.id]) {
+      markerRefs.current[shop.id].openPopup();
+    }
+    
+    // Pan map to selected shop
+    if (mapRef.current && shop.latitude !== null && shop.longitude !== null) {
+      mapRef.current.setView([shop.latitude, shop.longitude], mapRef.current.getZoom());
+    }
+  };
+  
+  // Close sidebar
+  const toggleSidebar = () => {
+    setIsSidebarVisible(!isSidebarVisible);
+  };
+  
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
+      {/* Sidebar */}
+      <ShopSidebar 
+        shops={visibleShops}
+        onShopSelect={handleShopSelect}
+        isVisible={isSidebarVisible}
+        onToggle={toggleSidebar}
+      />
+      
       {/* Controls overlay */}
       <FilterControls
         searchText={searchText}
@@ -293,7 +413,7 @@ export default function Map() {
         style={{
           position: "absolute",
           top: 76,
-          left: 12,
+          left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
           zIndex: 1100,
           background: "rgba(255,255,255,0.95)",
           padding: "6px 10px",
@@ -310,7 +430,7 @@ export default function Map() {
           style={{
             position: "absolute",
             top: 12,
-            left: 12,
+            left: isSidebarVisible ? 332 : 12, // Adjust for sidebar
             zIndex: 1000,
             background: "rgba(255,255,255,0.9)",
             padding: "6px 8px",
@@ -326,15 +446,21 @@ export default function Map() {
         center={position}
         zoom={12}
         scrollWheelZoom={true}
-        style={{ height: "100%", width: "100%" }}
+        style={{ 
+          height: "100%", 
+          width: "100%",
+          marginLeft: isSidebarVisible ? '20rem' : '0' // Adjust for sidebar
+        }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+        {RL && <MapEvents updateBounds={updateMapBounds} />}
   
-        {filteredShops && filteredShops.length > 0
-          ? filteredShops.map((s: Shop) => {
+        {visibleShops && visibleShops.length > 0
+          ? visibleShops.map((s: Shop) => {
               if (s.latitude == null || s.longitude == null) return null;
               const pos: [number, number] = [s.latitude, s.longitude];
 
@@ -367,7 +493,16 @@ export default function Map() {
               });
   
               return (
-                <Marker key={s.id} position={pos} icon={icon}>
+                <Marker 
+                  key={s.id} 
+                  position={pos} 
+                  icon={icon}
+                  ref={(ref: any) => {
+                    if (ref) {
+                      markerRefs.current[s.id] = ref;
+                    }
+                  }}
+                >
                   <Popup>
                     <div style={{ minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{s.name ?? "Unnamed shop"}</div>
