@@ -71,11 +71,11 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
   }
 
   return (
-    <div className="h-full z-[1100] bg-white shadow-xl flex flex-col w-80 cottage-map-container">
+    <div className="absolute right-0 top-0 h-full z-[1100] bg-white shadow-xl flex flex-col w-80 cottage-map-container">
       {/* Sidebar header */}
       <div className="p-4 border-b border-[--cottage-neutral-light] flex justify-between items-center">
         <h2 className="text-lg font-semibold text-[--cottage-primary]">Coffee Shops ({shops.length})</h2>
-        <button 
+        <button
           onClick={onToggle}
           className="p-2 rounded-full hover:bg-[--cottage-secondary] transition-colors"
           aria-label="Hide shop list"
@@ -96,7 +96,7 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
           <ul>
             {shops.map((shop) => (
               <li key={shop.id} className="border-b border-[--cottage-neutral-light] last:border-b-0">
-                <div 
+                <div
                   ref={getShopRef(shop.id)}
                   className={`p-4 cursor-pointer transition-all duration-200 ${
                     expandedShopId === shop.id ? 'bg-[--cottage-secondary]' : 'hover:bg-[--cottage-secondary]/50'
@@ -134,7 +134,7 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
                         )}
                       </div>
                       <div className="pt-2">
-                        <Link 
+                        <Link
                           href={`/shop/${shop.id}`}
                           className="text-[--cottage-primary] hover:text-[--cottage-terracotta] text-sm font-medium transition-colors"
                           onClick={(e) => e.stopPropagation()}

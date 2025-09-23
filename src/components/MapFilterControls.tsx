@@ -17,10 +17,10 @@ export default function MapFilterControls({
   return (
     <>
       {isLeftSidebarVisible && (
-        <div className="h-full z-[1100] bg-white shadow-lg flex flex-col w-80 cottage-map-container">
+        <div className="absolute left-0 top-0 h-full z-[1100] bg-white shadow-lg flex flex-col w-80 cottage-map-container">
           <div className="p-4 border-b border-[--cottage-neutral-light] flex justify-between items-center">
             <h2 className="text-lg font-semibold text-[--cottage-primary]">Filters</h2>
-            <button 
+            <button
               onClick={toggleLeftSidebar}
               className="p-2 rounded-full hover:bg-[--cottage-secondary] transition-colors"
               aria-label="Collapse filter panel"
@@ -30,13 +30,13 @@ export default function MapFilterControls({
               </svg>
             </button>
           </div>
-          
+
           <div className="overflow-y-auto flex-grow p-4">
             {filterChildren}
           </div>
         </div>
       )}
-      
+
       {/* Collapse/Expand Button - positioned at midpoint of sidebar */}
       <button
         onClick={toggleLeftSidebar}

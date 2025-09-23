@@ -309,9 +309,9 @@ export default function Map() {
   };
 
   return (
-    <div className="h-[calc(100vh-60px)] w-full fixed top-[60px] left-0 flex">
-      {/* Left Filter Sidebar */}
-      <MapFilterControls 
+    <div className="h-[calc(100vh-60px)] w-full fixed top-[60px] left-0 relative">
+      {/* Left Filter Sidebar - positioned absolutely over map */}
+      <MapFilterControls
         isLeftSidebarVisible={isLeftSidebarVisible}
         toggleLeftSidebar={toggleLeftSidebar}
         filterChildren={
@@ -350,8 +350,8 @@ export default function Map() {
                   }
                 }}
                 className={`px-3 py-2 rounded-lg font-medium transition-all ${
-                  debugVisible 
-                    ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
+                  debugVisible
+                    ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]'
                     : 'bg-white text-[--cottage-neutral-dark] border-[--cottage-neutral-dark]/30 hover:shadow-md'
                 }`}
                 title="Toggle grid debug overlay (TEST MODE: 6 points)"
@@ -362,15 +362,15 @@ export default function Map() {
           />
         }
       />
-      
-      {/* Main Map Area */}
-      <div className="h-full flex-grow relative cottage-map-container">
+
+      {/* Main Map Area - now takes full space */}
+      <div className="h-full w-full relative cottage-map-container">
         {/* Filter count message */}
         <FilterCountMessage filterCountMessage={filterCountMessage} />
-    
+
         {/* Loading indicator */}
         <MapLoadingIndicator loading={loading} />
-    
+
         <MapContainer
           center={position}
           zoom={12}
@@ -381,9 +381,9 @@ export default function Map() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          
+
           {RL && <MapEvents updateBounds={updateMapBounds} useMap={useMap} mapRef={mapRef} />}
-    
+
           {visibleShops && visibleShops.length > 0
             ? visibleShops.map((s: Shop) => {
                 if (s.latitude == null || s.longitude == null) return null;
@@ -421,16 +421,16 @@ export default function Map() {
                 );
               })
             : null}
-    
+
           {/* User location marker (rendered above other markers) */}
-          <UserLocationMarker 
-            userLocation={userLocation} 
+          <UserLocationMarker
+            userLocation={userLocation}
             L={L}
             locationPermission={locationPermission}
             Marker={Marker}
             Popup={Popup}
           />
-    
+
           {debugPoints ? (
             <GridDebugOverlay
               points={debugPoints}
@@ -440,9 +440,9 @@ export default function Map() {
           ) : null}
         </MapContainer>
       </div>
-      
-      {/* Right Shop Sidebar */}
-      <ShopSidebar 
+
+      {/* Right Shop Sidebar - positioned absolutely over map */}
+      <ShopSidebar
         shops={visibleShops}
         onShopSelect={handleShopSelect}
         isVisible={isSidebarVisible}
