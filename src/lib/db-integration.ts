@@ -38,6 +38,58 @@
 
 import { supabase } from "./supabase";
 import { getPhotoUrl } from "./google-places";
+import type { GooglePlace, GooglePlaceOpeningHours } from "@/src/types/google-places";
+import type { NearbyPlace } from "@/src/lib/density";
+
+// Database row interfaces
+interface CoffeeShopRow {
+  id: string;
+  google_place_id: string;
+  name: string | null;
+  address: string | null;
+  formatted_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  website: string | null;
+  google_rating: number | null;
+  price_level: number | null;
+  opening_hours: GooglePlaceOpeningHours | null;
+  photos: string[] | null;
+  types: string[] | null;
+  status: string;
+  last_updated: string;
+  updated_at: string;
+  sync_metadata: {
+    sourceGridId?: string;
+    gridRadius?: number;
+    searchLevel?: number;
+    raw?: {
+      id?: string | null;
+      name?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+    };
+  } | null;
+  main_photo_url: string | null;
+  photo_attribution: string | null;
+  google_photo_reference: string | null;
+}
+
+interface SimpleCoffeeShopRow {
+  id: string;
+}
+
+interface SyncHistoryRow {
+  id: string;
+  started_at: string;
+  finished_at: string;
+  inserted_count: number | null;
+  status: string;
+  requested_email: string | null;
+  requested_by: string | null;
+  error: string | null;
+}
 
 /**
  * Options for upsertShopsBatch
@@ -48,10 +100,21 @@ type UpsertOptions = {
 };
 
 /**
+ * Extended Google Place type for database integration
+ * Includes both new and legacy fields for backward compatibility
+ */
+type DbGooglePlace = GooglePlace & {
+  // Allow additional properties for flexibility
+  [key: string]: unknown;
+  // Make id optional to match NearbyPlace
+  id?: string;
+};
+
+/**
  * Input shape for upsert items
  */
 type UpsertItem = {
-  place: any;
+  place: NearbyPlace;
   sourceGridId?: string;
   gridRadius?: number;
   searchLevel?: number;
@@ -72,22 +135,34 @@ function chunkArray<T>(arr: T[], size = 50): T[][] {
  * Create a stable synthetic id when place.place_id is missing.
  * Supports v1 Places shapes (displayName/location) as a fallback.
  */
-function synthesizePlaceId(place: any) {
+function synthesizePlaceId(place: NearbyPlace) {
   const name =
     (typeof place?.name === "string" ? place.name : place?.displayName?.text) ??
     "unknown";
-  const lat =
-    place?.geometry?.location?.lat ??
-    place?.lat ??
-    place?.location?.latitude ??
-    place?.location?.lat ??
-    "0";
-  const lng =
-    place?.geometry?.location?.lng ??
-    place?.lng ??
-    place?.location?.longitude ??
-    place?.location?.lng ??
-    "0";
+  // Extract latitude from different possible shapes
+  let lat: string | number = "0";
+  if (typeof place?.geometry?.location?.lat === "number") {
+    lat = place.geometry.location.lat;
+  } else if (place?.location) {
+    if ('lat' in place.location && typeof place.location.lat === "number") {
+      lat = place.location.lat;
+    } else if ('latitude' in place.location && typeof place.location.latitude === "number") {
+      lat = place.location.latitude;
+    }
+ }
+  
+  // Extract longitude from different possible shapes
+  let lng: string | number = "0";
+  if (typeof place?.geometry?.location?.lng === "number") {
+    lng = place.geometry.location.lng;
+  } else if (place?.location) {
+    if ('lng' in place.location && typeof place.location.lng === "number") {
+      lng = place.location.lng;
+    } else if ('longitude' in place.location && typeof place.location.longitude === "number") {
+      lng = place.location.longitude;
+    }
+  }
+  
   return `local:${String(name).replace(/\s+/g, "_")}:${lat}:${lng}`;
 }
 
@@ -98,12 +173,18 @@ function synthesizePlaceId(place: any) {
  * - options.batchSize default 50
  * - options.upsertColumns: optional array of columns to update on conflict; defaults to common columns
  *
- * Returns: { inserted: number; updated: number; errors: any[] }
+ * Returns: { inserted: number; updated: number; errors: DbError[] }
  */
+// Type for error objects
+interface DbError {
+  batch?: number;
+  error?: Error | { message?: string };
+}
+
 export async function upsertShopsBatch(
   items: UpsertItem[],
   options: UpsertOptions = {}
-): Promise<{ inserted: number; updated: number; errors: any[] }> {
+): Promise<{ inserted: number; updated: number; errors: DbError[] }> {
   const batchSize = options.batchSize ?? 50;
   const upsertColumns =
     options.upsertColumns ??
@@ -129,7 +210,7 @@ export async function upsertShopsBatch(
   const batches = chunkArray(items, batchSize);
   let totalInserted = 0;
   let totalUpdated = 0;
-  const errors: any[] = [];
+  const errors: DbError[] = [];
 
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
@@ -155,19 +236,27 @@ export async function upsertShopsBatch(
         placeId = placeId ?? (typeof place?.name === "string" ? place.name : null) ?? synthesizePlaceId(place);
 
         // Location extraction: support legacy and v1/new Places shapes
-        const lat =
-          place?.geometry?.location?.lat ??
-          place?.lat ??
-          place?.location?.latitude ??
-          place?.location?.lat ??
-          null;
+        let lat: number | null = null;
+        if (typeof place?.geometry?.location?.lat === "number") {
+          lat = place.geometry.location.lat;
+        } else if (place?.location) {
+          if ('lat' in place.location && typeof place.location.lat === "number") {
+            lat = place.location.lat;
+          } else if ('latitude' in place.location && typeof place.location.latitude === "number") {
+            lat = place.location.latitude;
+          }
+        }
 
-        const lng =
-          place?.geometry?.location?.lng ??
-          place?.lng ??
-          place?.location?.longitude ??
-          place?.location?.lng ??
-          null;
+        let lng: number | null = null;
+        if (typeof place?.geometry?.location?.lng === "number") {
+          lng = place.geometry.location.lng;
+        } else if (place?.location) {
+          if ('lng' in place.location && typeof place.location.lng === "number") {
+            lng = place.location.lng;
+          } else if ('longitude' in place.location && typeof place.location.longitude === "number") {
+            lng = place.location.longitude;
+          }
+        }
 
         // Name/address mapping with v1 fields.
         // Prefer displayName.text when available (v1/new Places). If the legacy `place.name`
@@ -180,14 +269,14 @@ export async function upsertShopsBatch(
             : null;
 
         const formatted_address: string | null =
-          place?.formatted_address ?? place?.formattedAddress ?? null;
+          place?.formattedAddress ?? null;
 
         const address: string | null =
           place?.vicinity ?? place?.address ?? formatted_address;
 
         // Contact/web (often unavailable in nearby search)
         const phone: string | null =
-          place?.formatted_phone_number ?? place?.nationalPhoneNumber ?? place?.phone ?? null;
+          place?.formatted_phone_number ?? place?.nationalPhoneNumber ?? null;
 
         const website: string | null = place?.website ?? place?.websiteUri ?? null;
 
@@ -204,7 +293,10 @@ export async function upsertShopsBatch(
 
         // Photos fallback: handle legacy or v1 shapes if available
         const photos = Array.isArray(place?.photos)
-          ? place.photos.map((p: any) => p?.photo_reference ?? p?.name ?? p)
+          ? place.photos.map((p) => {
+              if (typeof p === "string") return p;
+              return p?.photo_reference ?? p?.name ?? "";
+            })
           : null;
   
         // Derive main photo reference and attribution where possible (supports both legacy and v1 shapes)
@@ -220,21 +312,13 @@ export async function upsertShopsBatch(
         // Extract opening hours data without attaching sync metadata
         // Prefer canonical opening hour shapes returned by the Places v1 API.
         // Fall back to legacy `opening_hours` if present.
-        let opening_hours: any =
+        let opening_hours: GooglePlaceOpeningHours | null =
           place?.regularOpeningHours ?? place?.currentOpeningHours ?? place?.opening_hours ?? null;
   
         // If opening_hours is an object but doesn't have the expected structure,
         // set it to null so we don't store unnecessary data
         if (opening_hours && typeof opening_hours === "object" && Object.keys(opening_hours).length === 0) {
           opening_hours = null;
-        }
-        
-        // Ensure opening_hours doesn't contain sync metadata
-        // If it does, remove the _sync property to keep only the actual hours data
-        if (opening_hours && typeof opening_hours === "object" && opening_hours._sync) {
-          // Create a copy without the _sync property
-          const { _sync, ...hoursWithoutSync } = opening_hours;
-          opening_hours = Object.keys(hoursWithoutSync).length > 0 ? hoursWithoutSync : null;
         }
         
         // Create sync metadata object
@@ -253,16 +337,8 @@ export async function upsertShopsBatch(
               ? place.name
               : null,
             // keep coordinates if available for quick lookup
-            latitude:
-              place?.geometry?.location?.lat ??
-              place?.lat ??
-              place?.location?.latitude ??
-              null,
-            longitude:
-              place?.geometry?.location?.lng ??
-              place?.lng ??
-              place?.location?.longitude ??
-              null,
+            latitude: lat,
+            longitude: lng,
           },
         };
   
@@ -321,10 +397,10 @@ export async function upsertShopsBatch(
           // If select fails, log and proceed to upsert anyway — mark as unknown on counts
           console.info(
             `DB: warning selecting existing ids for batch ${i + 1}:`,
-            (selectErr as any).message ?? selectErr
+            (selectErr as { message?: string }).message ?? selectErr
           );
         } else if (existingRows && Array.isArray(existingRows)) {
-          existingIds = (existingRows as any[]).map((r: any) => r.google_place_id);
+          existingIds = (existingRows as CoffeeShopRow[]).map((r) => r.google_place_id);
         }
       }
 
@@ -344,7 +420,7 @@ export async function upsertShopsBatch(
         errors.push({ batch: i, error });
         console.info(
           `DB: upsert batch ${i + 1}/${batches.length} — ${rows.length} items — error: ${
-            (error as any).message ?? error
+            (error as { message?: string }).message ?? error
           }`
         );
         // We cannot reliably compute inserted/updated counts for this batch when upsert fails; skip counts
@@ -359,7 +435,7 @@ export async function upsertShopsBatch(
         `DB: upsert batch ${i + 1}/${batches.length} — ${rows.length} items — approx inserted: ${approxInserted}, approx updated: ${approxUpdated}`
       );
     } catch (err) {
-      errors.push({ batch: i, error: err });
+      errors.push({ batch: i, error: err as Error | { message?: string } });
       console.info(`DB: unexpected error upserting batch ${i + 1}:`, err);
     }
   }
@@ -396,7 +472,7 @@ export async function markShopsNotSeenSince(syncTimestampISO: string): Promise<n
       return 0;
     }
 
-    const ids = (oldRows || []).map((r: any) => r.id);
+    const ids = (oldRows || []).map((r: SimpleCoffeeShopRow) => r.id);
     if (ids.length === 0) {
       return 0;
     }
@@ -439,7 +515,7 @@ export async function recordSyncRun(metadata: {
   apiCalls: number;
   startAt?: string;
   endAt?: string;
-}): Promise<any> {
+}): Promise<SyncHistoryRow | { skipped: boolean; metadata: typeof metadata } | { inserted: boolean; error?: Error | { message?: string } } | { inserted: boolean; metadata: typeof metadata }> {
   try {
     // Check if sync_history exists by attempting a lightweight select
     const { error: checkErr } = await supabase.from("sync_history").select("id").limit(1);
@@ -448,7 +524,7 @@ export async function recordSyncRun(metadata: {
       // Table might not exist; return metadata object instead
       console.info(
         "DB: sync_history table not found or select failed; skipping insert:",
-        (checkErr as any).message ?? checkErr
+        (checkErr as Error | { message?: string }).message ?? checkErr
       );
       return { skipped: true, metadata };
     }
@@ -478,6 +554,6 @@ export async function recordSyncRun(metadata: {
     return data?.[0] ?? { inserted: true, metadata };
   } catch (err) {
     console.info("DB: recordSyncRun unexpected error:", err);
-    return { inserted: false, error: err };
+    return { inserted: false, error: err as Error | { message?: string } };
   }
 }

@@ -42,7 +42,7 @@ export default function ShopStatus({ shopId }: Props) {
             .single();
           if (!mounted) return;
           if (!res.error && res.data) {
-            setStatus((res.data as any).status ?? null);
+            setStatus((res.data as { status: string }).status ?? null);
           } else {
             setStatus(null);
           }
@@ -78,7 +78,7 @@ export default function ShopStatus({ shopId }: Props) {
             .limit(1)
             .single();
           if (!res.error && res.data) {
-            setStatus((res.data as any).status ?? null);
+            setStatus((res.data as { status: string }).status ?? null);
           } else {
             setStatus(null);
           }

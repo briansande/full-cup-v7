@@ -2,12 +2,12 @@
  * dedupe.ts - Deduplication utilities for Full Cup
  *
  * Exports:
- * - type DedupResult = { placeId: string; place: any; preferredGridId: string; sourceGridIds: string[]; preferredRadius: number }
- * - type DeduplicationOutput = { dedupedPlaces: any[]; mapping: Record<string, DedupResult>; duplicatesByGrid: Record<string, number> }
- * - function deduplicateByPlaceId(perGridPlaces: Record<string, any[]>, options?: { preferSmallerRadius?: boolean }): DeduplicationOutput
+ * - type DedupResult = { placeId: string; place: GooglePlace; preferredGridId: string; sourceGridIds: string[]; preferredRadius: number }
+ * - type DeduplicationOutput = { dedupedPlaces: GooglePlace[]; mapping: Record<string, DedupResult>; duplicatesByGrid: Record<string, number> }
+ * - function deduplicateByPlaceId(perGridPlaces: Record<string, PerGridValue>, options?: { preferSmallerRadius?: boolean }): DeduplicationOutput
  *
  * Assumptions:
- * - perGridPlaces is a mapping of gridId -> placesArray OR gridId -> { places: any[]; radius?: number; level?: number }
+ * - perGridPlaces is a mapping of gridId -> placesArray OR gridId -> { places: GooglePlace[]; radius?: number; level?: number }
  * - place objects may have place_id, placeId, or id. If missing, we create a stable fallback using name + coords.
  * - radius and level metadata may be provided per-grid (in the value object) or not. If absent, selection falls back to first encountered.
  * - Function is synchronous and pure in-memory.
@@ -22,21 +22,25 @@
  * - All tie-breakers rely on deterministic comparisons so same input => same output.
  */
 
+import { GooglePlace } from "@/src/types/google-places";
+
 export type DedupResult = {
   placeId: string;
-  place: any;
+  place: GooglePlace;
   preferredGridId: string;
   sourceGridIds: string[];
   preferredRadius: number;
 };
 
 export type DeduplicationOutput = {
-  dedupedPlaces: any[];
+  dedupedPlaces: GooglePlace[];
   mapping: Record<string, DedupResult>;
   duplicatesByGrid: Record<string, number>;
 };
 
-type PerGridValue = any[] | { places: any[]; radius?: number; level?: number };
+type PerGridValue = GooglePlace[] | { places: GooglePlace[]; radius?: number; level?: number };
+
+type Occurrence = { gridId: string; place: GooglePlace; radius?: number; level?: number; encounterIndex: number };
 
 /**
  * deduplicateByPlaceId
@@ -59,21 +63,39 @@ export function deduplicateByPlaceId(
   const preferSmallerRadius = options?.preferSmallerRadius ?? true;
 
   // Helper to produce deterministic unique id from a place object
-  function getPlaceId(p: any): string {
+  function getPlaceId(p: GooglePlace): string {
     const pid = p?.place_id ?? p?.placeId ?? p?.id;
     if (pid) return String(pid);
 
     // fallback: try to build from name + coords; normalize name and coords to fixed precision
-    const name = (p?.name ?? p?.displayName ?? "").toString().trim().toLowerCase();
-    const lat = p?.location?.lat ?? p?.geometry?.location?.lat ?? p?.lat ?? p?.latitude;
-    const lng = p?.location?.lng ?? p?.geometry?.location?.lng ?? p?.lng ?? p?.longitude;
+    const name = (p?.name ?? p?.displayName?.text ?? "").toString().trim().toLowerCase();
+    // Extract latitude from various possible locations
+    let lat: number | string | undefined;
+    if (p?.location?.latitude !== undefined) {
+      lat = p.location.latitude;
+    } else if (p?.geometry?.location?.lat !== undefined) {
+      lat = p.geometry.location.lat;
+    } else if (p?.lat !== undefined) {
+      lat = p.lat;
+    }
+    
+    // Extract longitude from various possible locations
+    let lng: number | string | undefined;
+    if (p?.location?.longitude !== undefined) {
+      lng = p.location.longitude;
+    } else if (p?.geometry?.location?.lng !== undefined) {
+      lng = p.geometry.location.lng;
+    } else if (p?.lng !== undefined) {
+      lng = p.lng;
+    }
+    
     const latStr = typeof lat === "number" ? lat.toFixed(6) : String(lat);
     const lngStr = typeof lng === "number" ? lng.toFixed(6) : String(lng);
     return `${name}|${latStr}|${lngStr}`;
   }
 
   // Helper to extract deterministic numeric radius/level if provided
-  function extractMeta(value: PerGridValue): { places: any[]; radius?: number; level?: number } {
+  function extractMeta(value: PerGridValue): { places: GooglePlace[]; radius?: number; level?: number } {
     if (Array.isArray(value)) return { places: value };
     return {
       places: value.places ?? [],
@@ -88,8 +110,6 @@ export function deduplicateByPlaceId(
   for (const gid of Object.keys(perGridPlaces)) {
     gridOrder[gid] = orderCounter++;
   }
-
-  type Occurrence = { gridId: string; place: any; radius?: number; level?: number; encounterIndex: number };
 
   const occurrencesByPlace = new Map<string, Occurrence[]>();
   let encounterCounter = 0;
@@ -110,7 +130,7 @@ export function deduplicateByPlaceId(
   }
 
   const mapping: Record<string, DedupResult> = {};
-  const dedupedPlaces: any[] = [];
+  const dedupedPlaces: GooglePlace[] = [];
   const duplicatesByGrid: Record<string, number> = {};
 
   // For each unique place, choose preferred occurrence per heuristics

@@ -82,7 +82,7 @@ export default function ShopTags({ shopId }: Props) {
           .limit(8);
         if (!mounted) return;
         if (!res.error && Array.isArray(res.data)) {
-          setSearchResults(res.data.map((r: any) => ({ id: String(r.id), name: r.name })));
+          setSearchResults(res.data.map((r) => ({ id: String((r as { id: number | string; name: string }).id), name: (r as { id: number | string; name: string }).name })));
         } else {
           setSearchResults([]);
         }
@@ -126,7 +126,7 @@ export default function ShopTags({ shopId }: Props) {
 
         // Automatically cast a thumbs-up vote when a user adds a tag for the first time
         // Find the representative shop_tag (most voted) for this tag at this shop
-        let shopTagId: string | null = null;
+        const shopTagId: string | null = null;
         const st = await supabase
           .from('shop_tags')
           .select('id')
@@ -195,12 +195,12 @@ export default function ShopTags({ shopId }: Props) {
 
       let tagId: string | null = null;
       if (!t.error && Array.isArray(t.data) && t.data.length > 0) {
-        tagId = String((t.data[0] as any).id);
+        tagId = String((t.data[0] as { id: number | string; name: string }).id);
       } else {
         // If insert conflicted, try to look up the tag id
         const find = await supabase.from('tags').select('id').ilike('name', name).limit(1);
         if (!find.error && Array.isArray(find.data) && find.data.length > 0) {
-          tagId = String((find.data[0] as any).id);
+          tagId = String((find.data[0] as { id: number | string }).id);
         }
       }
 
@@ -227,7 +227,7 @@ export default function ShopTags({ shopId }: Props) {
         .limit(1)
         .maybeSingle();
 
-      const shopTagId = !st.error && st.data ? String((st.data as any).id) : null;
+      const shopTagId = !st.error && st.data ? String((st.data as { id: number | string }).id) : null;
       if (shopTagId) {
         await supabase
           .from('user_tag_votes')
@@ -274,7 +274,7 @@ export default function ShopTags({ shopId }: Props) {
 
       let shopTagId = null;
       if (!st.error && st.data) {
-        shopTagId = String((st.data as any).id);
+        shopTagId = String((st.data as { id: number | string }).id);
       } else {
         // create a shop_tag record owned by this user
         const create = await supabase
@@ -283,7 +283,7 @@ export default function ShopTags({ shopId }: Props) {
           .select('id')
           .limit(1);
         if (!create.error && Array.isArray(create.data) && create.data.length > 0) {
-          shopTagId = String((create.data[0] as any).id);
+          shopTagId = String((create.data[0] as { id: number | string }).id);
         }
       }
 

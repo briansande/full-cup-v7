@@ -15,6 +15,13 @@ import MapEvents from "@/src/components/MapEvents";
 import ShopMarker from "@/src/components/ShopMarker";
 import UserLocationMarker from "@/src/components/UserLocationMarker";
 import { distanceMiles } from "@/src/lib/distance";
+import type { Map as LeafletMap, LatLngBounds, Marker as LeafletMarker } from 'leaflet';
+import type { MapContainerProps, TileLayerProps, MarkerProps, PopupProps } from 'react-leaflet';
+
+// Extend Shop interface to include ephemeral _distanceMiles property
+interface ShopWithDistance extends Shop {
+  _distanceMiles?: number | null;
+}
 
 /**
  * Lazy-load react-leaflet at runtime and set Leaflet marker image URLs to CDN,
@@ -33,20 +40,20 @@ export default function Map() {
   const { shops, loading } = useShops(filters.dateDays);
   
   const [RL, setRL] = useState<{
-  MapContainer: any;
-  TileLayer: any;
-  Marker: any;
-  Popup: any;
-  L: any;
-  useMap: any;
-} | null>(null);
+    MapContainer: React.ComponentType<MapContainerProps>;
+    TileLayer: React.ComponentType<TileLayerProps>;
+    Marker: React.ComponentType<MarkerProps>;
+    Popup: React.ComponentType<PopupProps>;
+    L: typeof import('leaflet');
+    useMap: () => LeafletMap;
+  } | null>(null);
 
   // Map bounds state
-  const [mapBounds, setMapBounds] = useState<any>(null);
+  const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
   
   // Stable callback to prevent infinite re-renders
-  const updateMapBounds = useCallback((newBounds: any) => {
-    setMapBounds((currentBounds: any) => {
+  const updateMapBounds = useCallback((newBounds: LatLngBounds | null) => {
+    setMapBounds((currentBounds: LatLngBounds | null) => {
       // Only update if bounds have actually changed
       if (!currentBounds || !newBounds) return newBounds;
       
@@ -82,8 +89,8 @@ export default function Map() {
   };
   
   // Refs for map markers and map instance
- const markerRefs = useRef<Record<string, any>>({});
-  const mapRef = useRef<any>(null);
+ const markerRefs = useRef<Record<string, LeafletMarker<object>>>({});
+  const mapRef = useRef<LeafletMap | null>(null);
 
   // If a shop is extremely close to the user's reported location, hide the shop marker
  // so the user's circular location indicator is the only visible marker. Value is miles.
@@ -131,7 +138,7 @@ export default function Map() {
   const filteredShops = useMemo(() => {
     if (!shops || shops.length === 0) return [];
     
-    return shops.filter((s: Shop) => {
+    return shops.filter((s: ShopWithDistance) => {
       if (s.latitude == null || s.longitude == null) return false;
 
       // Tag filter (AND logic): if selectedTags present, require shop.tagIds includes all selected tags
@@ -156,11 +163,11 @@ export default function Map() {
         }
         const d = distanceMiles(userLocation.lat, userLocation.lng, s.latitude, s.longitude);
         // attach ephemeral distance for display in popups
-        (s as any)._distanceMiles = d;
+        (s as ShopWithDistance)._distanceMiles = d;
         if (typeof distanceRadiusMiles === "number" && d > distanceRadiusMiles) return false;
       } else {
         // ensure no stale distance is left
-        (s as any)._distanceMiles = null;
+        (s as ShopWithDistance)._distanceMiles = null;
       }
 
       if (!normalizedSearch) return true;
@@ -174,7 +181,7 @@ export default function Map() {
     if (!filteredShops || filteredShops.length === 0) return [];
     if (!mapBounds) return filteredShops;
     
-    return filteredShops.filter((s: Shop) => {
+    return filteredShops.filter((s: ShopWithDistance) => {
       if (s.latitude == null || s.longitude == null) return false;
       
       // Check if shop is within map bounds
@@ -236,12 +243,12 @@ export default function Map() {
 
       // Provide react-leaflet components and the leaflet module (L) for icon creation
       setRL({
-        MapContainer: (mod as any).MapContainer,
-        TileLayer: (mod as any).TileLayer,
-        Marker: (mod as any).Marker,
-        Popup: (mod as any).Popup,
+        MapContainer: mod.MapContainer,
+        TileLayer: mod.TileLayer,
+        Marker: mod.Marker,
+        Popup: mod.Popup,
         L,
-        useMap: (mod as any).useMap,
+        useMap: mod.useMap,
       });
     })();
 

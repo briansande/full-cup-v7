@@ -41,7 +41,7 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
         if (!res.error && Array.isArray(res.data)) {
           const map: Record<string, string> = {};
           for (const row of res.data) {
-            map[String((row as any).id)] = (row as any).name;
+            map[String((row as { id: number | string; name: string }).id)] = (row as { id: number | string; name: string }).name;
           }
           setSelectedTagDetails(map);
         } else {
@@ -75,7 +75,7 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
 
         if (!mounted) return;
         if (!res.error && Array.isArray(res.data)) {
-          setResults(res.data.map((r: any) => ({ id: String(r.id), name: r.name })));
+          setResults(res.data.map((r) => ({ id: String((r as { id: number | string; name: string }).id), name: (r as { id: number | string; name: string }).name })));
         } else {
           setResults([]);
         }

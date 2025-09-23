@@ -106,7 +106,7 @@ export async function runTestAreaSync(options?: RunOptions): Promise<GridSearchS
   let aborted = false;
 
   // Cumulative filtering statistics
-  let totalFilterStats = {
+  const totalFilterStats = {
     original: 0,
     afterChainFilter: 0,
     afterKeywordFilter: 0,

@@ -8,6 +8,9 @@ import { runTestAreaSync } from "@/src/lib/grid-search";
 import { recordSyncRun } from "@/src/lib/db-integration";
 
 import { upsertShopsBatch } from "@/src/lib/db-integration";
+import type { AdaptiveSearchSummary } from "@/src/lib/adaptive-search";
+import type { GridSearchSummary } from "@/src/lib/grid-search";
+
 /**
  * Admin Sync API
  *
@@ -31,7 +34,7 @@ import { upsertShopsBatch } from "@/src/lib/db-integration";
  * Current run controller (module-level singleton)
  */
 let currentRun: {
-  promise: Promise<any> | null;
+  promise: Promise<AdaptiveSearchSummary | GridSearchSummary> | null;
   abortController: AbortController | null;
   mode: string | null;
 } = { promise: null, abortController: null, mode: null };
@@ -84,7 +87,15 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({} as any));
+    type AdminSyncRequestBody = {
+  action: 'start' | 'abort';
+  mode?: 'test' | 'production';
+  options?: {
+    maxApiCalls?: number;
+  };
+};
+
+    const body = await request.json().catch((): AdminSyncRequestBody => ({ action: 'start' }));
     const action = (body?.action as string) ?? "start";
 
     // Validate admin for mutating actions
@@ -108,7 +119,7 @@ export async function POST(request: Request) {
       const abortController = new AbortController();
 
       // Start background runner (do not await)
-      const runner = (async () => {
+      const runner = async (): Promise<AdaptiveSearchSummary | GridSearchSummary> => {
         const startAt = new Date().toISOString();
         try {
           // Reset progress for a fresh run (UI subscribers will get a replay)
@@ -118,12 +129,20 @@ export async function POST(request: Request) {
             // ignore
           }
 
-          let summary: any = null;
+          let summary: AdaptiveSearchSummary | GridSearchSummary | null = null;
           // Use the adaptive runner for both test and production runs so that
           // subdivision decisions are based on the raw Places API response count
           // (rawCount) rather than post-filtered counts. This prevents test runs
           // from skipping subdivisions when filtering reduces the visible results.
-          summary = await runAdaptiveTestSync({ maxApiCalls, abortSignal: abortController.signal });
+          // Use the adaptive runner for both test and production runs so that
+          // subdivision decisions are based on the raw Places API response count
+          // (rawCount) rather than post-filtered counts. This prevents test runs
+          // from skipping subdivisions when filtering reduces the visible results.
+          if (mode === "test") {
+            summary = await runTestAreaSync({ maxApiCalls, abortSignal: abortController.signal });
+          } else {
+            summary = await runAdaptiveTestSync({ maxApiCalls, abortSignal: abortController.signal });
+          }
 
           const endAt = new Date().toISOString();
 
@@ -132,9 +151,9 @@ export async function POST(request: Request) {
             const metadata = {
               mode: mode as "test" | "production",
               areasSearched:
-                typeof summary?.totalAreasSearched === "number"
+                summary && "totalAreasSearched" in summary
                   ? summary.totalAreasSearched
-                  : typeof summary?.searchesRun === "number"
+                  : summary && "searchesRun" in summary
                   ? summary.searchesRun
                   : 0,
               placesFound: typeof summary?.totalPlaces === "number" ? summary.totalPlaces : 0,
@@ -147,6 +166,9 @@ export async function POST(request: Request) {
             // eslint-disable-next-line no-console
             console.error("Failed to record sync run metadata:", e);
           }
+          
+          // Return the summary
+          return summary as AdaptiveSearchSummary | GridSearchSummary;
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           // eslint-disable-next-line no-console
@@ -156,13 +178,14 @@ export async function POST(request: Request) {
           } catch (e) {
             // swallow
           }
+          throw err;
         } finally {
           // Clear currentRun so future starts are allowed.
           currentRun = { promise: null, abortController: null, mode: null };
         }
-      })();
+      };
 
-      currentRun = { promise: runner, abortController, mode };
+      currentRun = { promise: runner(), abortController, mode };
 
       return NextResponse.json({ started: true, mode }, { status: 202 });
     } else if (action === "abort") {

@@ -110,7 +110,7 @@ export default function AdminPage() {
         setShopsCount(null);
         setMessage("Failed to load stats");
       } else {
-        // @ts-ignore - count is provided on the response
+        
         const cnt = (res as any).count;
         setShopsCount(typeof cnt === "number" ? cnt : null);
       }

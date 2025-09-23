@@ -782,7 +782,7 @@ export default function ProfilePage() {
           {shopListsLoading && shopLists.length === 0 ? (
             <div>Loading your shop lists…</div>
           ) : shopLists.length === 0 ? (
-            <div style={{ color: "#666" }}>You haven't marked any shops yet. <Link href="/new-shops" style={{ color: "#2563eb", marginLeft: 8 }}>Find shops</Link></div>
+            <div style={{ color: "#666" }}>You haven&apos;t marked any shops yet. <Link href="/new-shops" style={{ color: "#2563eb", marginLeft: 8 }}>Find shops</Link></div>
           ) : (
             // Group by status
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

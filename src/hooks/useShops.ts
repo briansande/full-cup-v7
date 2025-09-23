@@ -22,7 +22,7 @@ export default function useShops(days?: number | null) {
       setError(null);
       try {
         // Fetch basic shop information
-        const mapped = await fetchBasicShops(days);
+        const mapped: Shop[] = await fetchBasicShops(days);
         if (!mountedRef.current) return;
 
         // Fetch user's statuses and merge

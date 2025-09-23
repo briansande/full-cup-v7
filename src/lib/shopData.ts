@@ -5,6 +5,48 @@
 import { supabase } from "@/src/lib/supabase";
 import { Shop } from "@/src/types";
 
+// Type definitions for database query results
+interface BasicShopData {
+  id: number | string;
+  name: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  date_added: string | null;
+  main_photo_url: string | null;
+  photo_attribution: string | null;
+}
+
+interface UserShopStatus {
+  shop_id: number | string;
+  status: string;
+}
+
+interface ShopReviewData {
+  shop_id: number | string;
+  rating: number | string | null;
+  coffee_quality_rating: number | string | null;
+  atmosphere_rating: number | string | null;
+  noise_level_rating: number | string | null;
+  wifi_quality_rating: number | string | null;
+  work_friendliness_rating: number | string | null;
+  service_rating: number | string | null;
+}
+
+interface TagData {
+  shop_id: number | string;
+  votes: number | string;
+  tag: {
+    id: number | string;
+    name: string;
+  }[];
+}
+
+interface ProcessedTag {
+  tag_id: string;
+  tag_name: string;
+  total_votes: number;
+}
+
 /**
  * Fetch basic shop information
  */
@@ -24,7 +66,7 @@ export async function fetchBasicShops(days?: number | null) {
 
   const data = Array.isArray(res.data) ? res.data : [];
   // Map basic shop info
-  return data.map((d: any) => ({
+  return data.map((d: BasicShopData) => ({
     id: String(d.id),
     name: d.name ?? null,
     latitude:
@@ -68,8 +110,9 @@ export async function fetchUserShopStatuses(shopIds: string[]) {
     
     const statusMap: Record<string, string> = {};
     for (const row of st.data) {
-      const sid = String((row as any).shop_id);
-      const s = (row as any).status;
+      const rowData = row as unknown as UserShopStatus;
+      const sid = String(rowData.shop_id);
+      const s = rowData.status;
       if (sid) statusMap[sid] = s;
     }
     
@@ -114,7 +157,8 @@ export async function fetchAndCalculateReviewRatings(shopIds: string[]) {
     
     const aggMap: Record<string, ReviewAggregates> = {};
     for (const row of rev.data) {
-      const sid = String((row as any).shop_id);
+      const rowData = row as unknown as ShopReviewData;
+      const sid = String(rowData.shop_id);
       if (!aggMap[sid]) {
         aggMap[sid] = {
           sumRating: 0, countRating: 0,
@@ -128,29 +172,29 @@ export async function fetchAndCalculateReviewRatings(shopIds: string[]) {
       }
       const a = aggMap[sid];
 
-      const ratingVal = (row as any).rating;
+      const ratingVal = rowData.rating;
       const ratingNum = ratingVal == null ? NaN : Number(ratingVal);
       if (!Number.isNaN(ratingNum)) {
         a.sumRating += ratingNum;
         a.countRating += 1;
       }
 
-      const c = (row as any).coffee_quality_rating;
+      const c = rowData.coffee_quality_rating;
       if (c != null) { a.sumCoffee += Number(c); a.countCoffee += 1; }
 
-      const at = (row as any).atmosphere_rating;
+      const at = rowData.atmosphere_rating;
       if (at != null) { a.sumAtmos += Number(at); a.countAtmos += 1; }
 
-      const no = (row as any).noise_level_rating;
+      const no = rowData.noise_level_rating;
       if (no != null) { a.sumNoise += Number(no); a.countNoise += 1; }
 
-      const wi = (row as any).wifi_quality_rating;
+      const wi = rowData.wifi_quality_rating;
       if (wi != null) { a.sumWifi += Number(wi); a.countWifi += 1; }
 
-      const wk = (row as any).work_friendliness_rating;
+      const wk = rowData.work_friendliness_rating;
       if (wk != null) { a.sumWork += Number(wk); a.countWork += 1; }
 
-      const sv = (row as any).service_rating;
+      const sv = rowData.service_rating;
       if (sv != null) { a.sumService += Number(sv); a.countService += 1; }
     }
     
@@ -193,21 +237,23 @@ export async function fetchShopTags(shopIds: string[]) {
       return {};
     }
     
-    const tagMap: Record<string, any[]> = {};
-    for (const row of tagRes.data as any[]) {
-      const sid = String(row.shop_id);
-      const tagObj = row.tag ?? row.tags ?? null;
+    const tagMap: Record<string, ProcessedTag[]> = {};
+    for (const row of tagRes.data) {
+      const rowData = row as { shop_id: number | string; votes: number | string; tag: { id: number | string; name: string }[] };
+      const sid = String(rowData.shop_id);
+      // Get the first tag from the array if it exists
+      const tagObj = rowData.tag && rowData.tag.length > 0 ? rowData.tag[0] : null;
       if (!tagObj) continue;
       if (!tagMap[sid]) tagMap[sid] = [];
       tagMap[sid].push({
         tag_id: String(tagObj.id),
         tag_name: tagObj.name,
-        total_votes: Number(row.votes ?? 0),
+        total_votes: Number(rowData.votes ?? 0),
       });
     }
     
     // Convert to shop tags format
-    const tagsMap: Record<string, { topTags: any[]; tagIds: string[] }> = {};
+    const tagsMap: Record<string, { topTags: ProcessedTag[]; tagIds: string[] }> = {};
     for (const shopId of shopIds) {
       const allTags = (tagMap[shopId] || []);
       tagsMap[shopId] = {
@@ -219,7 +265,7 @@ export async function fetchShopTags(shopIds: string[]) {
     return tagsMap;
   } catch {
     // Return empty tags for all shops
-    const tagsMap: Record<string, { topTags: any[]; tagIds: string[] }> = {};
+    const tagsMap: Record<string, { topTags: ProcessedTag[]; tagIds: string[] }> = {};
     for (const shopId of shopIds) {
       tagsMap[shopId] = { topTags: [], tagIds: [] };
     }

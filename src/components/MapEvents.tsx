@@ -1,10 +1,11 @@
 'use client';
 import React, { useEffect } from 'react';
+import type { Map as LeafletMap, LatLngBounds } from 'leaflet';
 
 interface MapEventsProps {
-  useMap: any;
-  updateBounds: (bounds: any) => void;
-  mapRef: React.MutableRefObject<any>;
+  useMap: () => LeafletMap;
+  updateBounds: (bounds: LatLngBounds) => void;
+  mapRef: React.MutableRefObject<LeafletMap | null>;
 }
 
 export default function MapEvents({ 

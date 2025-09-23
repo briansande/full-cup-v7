@@ -116,7 +116,7 @@ export async function syncHoustonCoffeeShops(limit = 8) {
     const placeIds = places.map((p) => p.id || p.place_id || p.placeId).filter(Boolean) as string[];
 
     // Query existing rows to know which ids already exist
-    let existingIds = new Set<string>();
+    const existingIds = new Set<string>();
     if (placeIds.length > 0) {
       const existingRes = await supabase
         .from("coffee_shops")
@@ -124,7 +124,7 @@ export async function syncHoustonCoffeeShops(limit = 8) {
         .in("google_place_id", placeIds);
       if (!existingRes.error && Array.isArray(existingRes.data)) {
         for (const row of existingRes.data) {
-          const id = (row as any).google_place_id;
+          const id = (row as { google_place_id: string }).google_place_id;
           if (id) existingIds.add(String(id));
         }
       }
@@ -143,7 +143,7 @@ export async function syncHoustonCoffeeShops(limit = 8) {
       const mainPhoto = photosArray.length > 0 ? photosArray[0] : null;
   
       const photos = photosArray.length > 0
-        ? photosArray.map((photo: any) => {
+        ? photosArray.map((photo) => {
             // Handle both legacy and v1 photo shapes
             const photoName = photo.name || photo.photo_reference;
             return photoName ? getPhotoUrl(photoName) : null;

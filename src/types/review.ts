@@ -18,7 +18,7 @@ export interface DrinkReview {
   user_id: string;
   shop_id: string;
   drink_name: string;
-  rating: string; // 'pass' | 'good' | 'awesome'
+  rating: 'pass' | 'good' | 'awesome';
   review_text: string | null;
   drink_type: string | null;
   created_at: string | null;

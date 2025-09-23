@@ -8,41 +8,12 @@
  *       In a production app you'd want to use a server-only env var.
  */
 
-export type Place = {
-  id: string;
-  displayName?: {
-    text: string;
-    languageCode: string;
-  };
-  formattedAddress?: string;
-  types?: string[];
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-  rating?: number;
-  websiteUri?: string;
-  nationalPhoneNumber?: string;
-  regularOpeningHours?: any;
-  priceLevel?: string; // e.g., "PRICE_LEVEL_MODERATE"
-  userRatingCount?: number;
-  businessStatus?: string; // e.g., "OPERATIONAL"
-  photos?: {
-    name: string; // "places/{place_id}/photos/{photo_reference}"
-    widthPx: number;
-    heightPx: number;
-    authorAttributions: {
-      displayName: string;
-      uri: string;
-      photoUri: string;
-    }[];
-  }[];
-};
+import type { GooglePlace, GooglePlaceDetailsResponse, GooglePlacesSearchResponse } from "@/src/types/google-places";
 
 export async function searchNearbyPlaces(
   query: string,
   limit = 2
-): Promise<Place[]> {
+): Promise<GooglePlace[]> {
   const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
     throw new Error("Missing Google Maps API key (GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
@@ -86,14 +57,14 @@ export async function searchNearbyPlaces(
     throw new Error(`Google Places API error: ${res.status} ${res.statusText} - ${errorBody}`);
   }
 
-  const json = await res.json();
+  const json: GooglePlacesSearchResponse = await res.json();
 
-  if (json.error) {
+  if ('error' in json && json.error) {
     // Surface helpful error for debugging (e.g., invalid key, quota)
     throw new Error(`Google Places API error: ${json.error.message}`);
   }
 
-  return (json.places as Place[]) ?? [];
+  return json.places ?? [];
 }
 
 /**
@@ -103,7 +74,7 @@ export async function searchNearbyPlaces(
  *
  * @param placeIdOrResource Either a plain place_id (e.g. "ChIJ...") or a resource name like "places/{place_id}"
  */
-export async function getPlaceDetails(placeIdOrResource: string) {
+export async function getPlaceDetails(placeIdOrResource: string): Promise<GooglePlaceDetailsResponse | null> {
   const key = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) {
     throw new Error("Missing Google Maps API key (GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
@@ -131,8 +102,8 @@ export async function getPlaceDetails(placeIdOrResource: string) {
     return null;
   }
 
-  const json = await res.json();
-  return json;
+  const json = await res.json() as GooglePlaceDetailsResponse;
+ return json;
 }
 
 /**

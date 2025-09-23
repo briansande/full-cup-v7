@@ -2,18 +2,20 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shop } from '@/src/types';
+import type { Marker as LeafletMarker, LeafletEvent } from 'leaflet';
+import type { MarkerProps, PopupProps } from 'react-leaflet';
 
 type ShopMarkerProps = {
   shop: Shop;
   isSelected: boolean;
   onClick: () => void;
-  markerRefs: React.MutableRefObject<Record<string, any>>;
-  L: any;
+  markerRefs: React.MutableRefObject<Record<string, LeafletMarker>>;
+ L: typeof import('leaflet');
   distanceActive: boolean;
   ICONS: Record<string, { iconUrl: string; iconRetinaUrl: string }>;
   shadowUrl: string;
- Marker: React.ComponentType<any>;
-  Popup: React.ComponentType<any>;
+  Marker: React.ComponentType<MarkerProps>;
+  Popup: React.ComponentType<PopupProps>;
 };
 
 export default function ShopMarker({
@@ -50,14 +52,16 @@ export default function ShopMarker({
       key={shop.id} 
       position={pos} 
       icon={icon}
-      ref={(ref: any) => {
-        if (ref) {
-          markerRefs.current[shop.id] = ref;
-        }
-      }}
       eventHandlers={{
         click: () => {
           onClick();
+        },
+        add: (event: LeafletEvent) => {
+          // The target of the event should be the marker instance
+          const marker = event.target as LeafletMarker;
+          if (marker) {
+            markerRefs.current[shop.id] = marker;
+          }
         }
       }}
     >
@@ -65,9 +69,9 @@ export default function ShopMarker({
         <div className="min-w-[160px] p-3">
           <div className="font-semibold text-[--cottage-primary]">{shop.name ?? "Unnamed shop"}</div>
 
-            {distanceActive && (shop as any)._distanceMiles != null ? (
+            {distanceActive && (shop as Shop & { _distanceMiles?: number })._distanceMiles != null ? (
               <div className="mt-2 text-sm">
-                Distance: <strong>{Number((shop as any)._distanceMiles).toFixed(2)} mi</strong>
+                Distance: <strong>{Number((shop as Shop & { _distanceMiles?: number })._distanceMiles).toFixed(2)} mi</strong>
               </div>
             ) : null}
 
