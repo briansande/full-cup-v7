@@ -2,7 +2,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shop } from '@/src/types';
-import { Marker, Popup } from 'react-leaflet';
 
 type ShopMarkerProps = {
   shop: Shop;
@@ -13,6 +12,8 @@ type ShopMarkerProps = {
   distanceActive: boolean;
   ICONS: Record<string, { iconUrl: string; iconRetinaUrl: string }>;
   shadowUrl: string;
+ Marker: React.ComponentType<any>;
+  Popup: React.ComponentType<any>;
 };
 
 export default function ShopMarker({
@@ -23,7 +24,9 @@ export default function ShopMarker({
   L,
   distanceActive,
   ICONS,
-  shadowUrl
+  shadowUrl,
+  Marker,
+  Popup
 }: ShopMarkerProps) {
   // If shop coordinates are not available, don't render the marker
   if (shop.latitude == null || shop.longitude == null) return null;

@@ -1,6 +1,5 @@
 'use client';
 import React from 'react';
-import { Marker, Popup } from 'react-leaflet';
 
 type Location = { lat: number; lng: number } | null;
 
@@ -8,12 +7,16 @@ interface UserLocationMarkerProps {
   userLocation: Location;
   L: any;
   locationPermission: 'unknown' | 'prompt' | 'granted' | 'denied';
+  Marker: React.ComponentType<any>;
+  Popup: React.ComponentType<any>;
 }
 
 export default function UserLocationMarker({ 
   userLocation, 
   L,
-  locationPermission
+  locationPermission,
+  Marker,
+  Popup
 }: UserLocationMarkerProps) {
   // If user location is not available, don't render the marker
   if (!userLocation) return null;

@@ -66,7 +66,7 @@ export default function Map() {
       return hasChanged ? newBounds : currentBounds;
     });
   }, []);
-
+  
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(true);
@@ -82,11 +82,11 @@ export default function Map() {
   };
   
   // Refs for map markers and map instance
-  const markerRefs = useRef<Record<string, any>>({});
+ const markerRefs = useRef<Record<string, any>>({});
   const mapRef = useRef<any>(null);
 
   // If a shop is extremely close to the user's reported location, hide the shop marker
-  // so the user's circular location indicator is the only visible marker. Value is miles.
+ // so the user's circular location indicator is the only visible marker. Value is miles.
   // Increased threshold to 0.2 miles (~320 meters) to avoid duplicate markers showing.
   const USER_HIDE_THRESHOLD_MILES = 0.2;
 
@@ -116,7 +116,7 @@ export default function Map() {
     setSelectedTags,
   } = filters;
 
-  // Grid debug overlay state (lazy loaded)
+ // Grid debug overlay state (lazy loaded)
   const [debugVisible, setDebugVisible] = useState<boolean>(false);
   const [debugPoints, setDebugPoints] = useState<GridPoint[] | null>(null);
 
@@ -314,53 +314,54 @@ export default function Map() {
       <MapFilterControls 
         isLeftSidebarVisible={isLeftSidebarVisible}
         toggleLeftSidebar={toggleLeftSidebar}
-      >
-        <FilterControls
-          searchText={searchText}
-          setSearchText={setSearchText}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          dateDays={dateDays}
-          setDateDays={setDateDays}
-          DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
-          distanceActive={distanceActive}
-          setDistanceFilterEnabled={setDistanceFilterEnabled}
-          DISTANCE_OPTIONS={DISTANCE_OPTIONS}
-          distanceRadiusMiles={distanceRadiusMiles}
-          setDistanceRadiusMiles={setDistanceRadiusMiles}
-          userLocation={userLocation}
-          locationPermission={locationPermission}
-          locationError={locationError}
-          requestLocation={requestLocation}
-          clearFilters={clearFilters}
-          // Tag filter props
-          selectedTags={selectedTags}
-          setSelectedTags={setSelectedTags}
-          renderDebugButton={showDebugToggle ? (
-            <button
-              onClick={async () => {
-                const next = !debugVisible;
-                setDebugVisible(next);
-                // Lazy-generate grid points only when turning the overlay ON for the first time
-                if (next && !debugPoints) {
-                  const pts = generateGrid('test');
-                  setDebugPoints(pts);
-                  // Log the required boundaries message when overlay is enabled
-                  console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
-                }
-              }}
-              className={`px-3 py-2 rounded-lg font-medium transition-all ${
-                debugVisible 
-                  ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
-                  : 'bg-white text-[--cottage-neutral-dark] border border-[--cottage-neutral-dark]/30 hover:shadow-md'
-              }`}
-              title="Toggle grid debug overlay (TEST MODE: 6 points)"
-            >
-              {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
-            </button>
-          ) : null}
-        />
-      </MapFilterControls>
+        filterChildren={
+          <FilterControls
+            searchText={searchText}
+            setSearchText={setSearchText}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            dateDays={dateDays}
+            setDateDays={setDateDays}
+            DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS}
+            distanceActive={distanceActive}
+            setDistanceFilterEnabled={setDistanceFilterEnabled}
+            DISTANCE_OPTIONS={DISTANCE_OPTIONS}
+            distanceRadiusMiles={distanceRadiusMiles}
+            setDistanceRadiusMiles={setDistanceRadiusMiles}
+            userLocation={userLocation}
+            locationPermission={locationPermission}
+            locationError={locationError}
+            requestLocation={requestLocation}
+            clearFilters={clearFilters}
+            // Tag filter props
+            selectedTags={selectedTags}
+            setSelectedTags={setSelectedTags}
+            renderDebugButton={showDebugToggle ? (
+              <button
+                onClick={async () => {
+                  const next = !debugVisible;
+                  setDebugVisible(next);
+                  // Lazy-generate grid points only when turning the overlay ON for the first time
+                  if (next && !debugPoints) {
+                    const pts = generateGrid('test');
+                    setDebugPoints(pts);
+                    // Log the required boundaries message when overlay is enabled
+                    console.log('GridDebug: TEST MODE: 6 points — boundaries: north=29.78, south=29.74, east=-95.35, west=-95.39');
+                  }
+                }}
+                className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                  debugVisible 
+                    ? 'bg-[--cottage-neutral-dark] text-white border border-[--cottage-neutral-dark]' 
+                    : 'bg-white text-[--cottage-neutral-dark] border-[--cottage-neutral-dark]/30 hover:shadow-md'
+                }`}
+                title="Toggle grid debug overlay (TEST MODE: 6 points)"
+              >
+                {debugVisible ? "Hide Debug (TEST MODE: 6 points)" : "Show Debug (TEST MODE: 6 points)"}
+              </button>
+            ) : null}
+          />
+        }
+      />
       
       {/* Main Map Area */}
       <div className="h-full flex-grow relative cottage-map-container">
@@ -414,18 +415,22 @@ export default function Map() {
                     distanceActive={distanceActive}
                     ICONS={ICONS}
                     shadowUrl={shadowUrl}
+                    Marker={Marker}
+                    Popup={Popup}
                   />
                 );
               })
             : null}
-
+    
           {/* User location marker (rendered above other markers) */}
           <UserLocationMarker 
             userLocation={userLocation} 
             L={L}
             locationPermission={locationPermission}
+            Marker={Marker}
+            Popup={Popup}
           />
-
+    
           {debugPoints ? (
             <GridDebugOverlay
               points={debugPoints}
