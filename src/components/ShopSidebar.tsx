@@ -111,10 +111,10 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
                   {/* Shop name and rating */}
                   <div className="flex justify-between items-start">
                     <h3 className={`font-medium ${selectedShopId === shop.id ? 'text-[--cottage-primary]' : 'text-[--cottage-neutral-dark]'}`}>{shop.name || 'Unnamed shop'}</h3>
-                    {shop.avgRating !== null && (
+                    {shop.avgRating != null && (
                       <div className="flex items-center">
                         <span className="text-yellow-500 mr-1">★</span>
-                        <span className="text-[--cottage-neutral-dark]">{shop.avgRating.toFixed(1)}</span>
+                        <span className="text-[--cottage-neutral-dark]">{Number(shop.avgRating).toFixed(1)}</span>
                       </div>
                     )}
                   </div>
@@ -123,14 +123,14 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
                   {expandedShopId === shop.id && (
                     <div className="mt-3 space-y-2">
                       <div className="text-sm text-[--cottage-neutral-dark]/80">
-                        {shop.avgCoffeeQuality !== null && (
-                          <div>Coffee: <span className="text-[--cottage-accent] font-medium">{shop.avgCoffeeQuality.toFixed(1)} ★</span></div>
+                        {shop.avgCoffeeQuality != null && (
+                          <div>Coffee: <span className="text-[--cottage-accent] font-medium">{Number(shop.avgCoffeeQuality).toFixed(1)} ★</span></div>
                         )}
-                        {shop.avgAtmosphere !== null && (
-                          <div>Atmosphere: <span className="text-[--cottage-accent] font-medium">{shop.avgAtmosphere.toFixed(1)} ★</span></div>
+                        {shop.avgAtmosphere != null && (
+                          <div>Atmosphere: <span className="text-[--cottage-accent] font-medium">{Number(shop.avgAtmosphere).toFixed(1)} ★</span></div>
                         )}
-                        {shop.avgWifiQuality !== null && (
-                          <div>WiFi: <span className="text-[--cottage-accent] font-medium">{shop.avgWifiQuality.toFixed(1)} ★</span></div>
+                        {shop.avgWifiQuality != null && (
+                          <div>WiFi: <span className="text-[--cottage-accent] font-medium">{Number(shop.avgWifiQuality).toFixed(1)} ★</span></div>
                         )}
                       </div>
                       <div className="pt-2">

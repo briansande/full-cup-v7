@@ -134,8 +134,8 @@ type RunOptions = {
  */
 export async function runAdaptiveTestSync(options?: RunOptions): Promise<AdaptiveSearchSummary> {
   const {
-    maxApiCalls = 50,
-    rateLimitMs = 1000,
+    maxApiCalls = 3000,
+    rateLimitMs = 1500,
     maxDepth = 8,
     debugLog = true,
     abortSignal,

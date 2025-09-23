@@ -46,8 +46,11 @@ const TEST_BOUNDARIES = {
   south: 29.74,
   east: -95.35,
   west: -95.39,
-  centerLat: 29.7604,
-  centerLng: -95.3698,
+  // centerLat: 29.7604,
+  // centerLng: -95.3698,
+  centerLat: 29.810243,
+  centerLng: -95.843085
+
 };
 
 const HOUSTON_BOUNDARIES = {
@@ -85,8 +88,8 @@ function kmOffsetToDeg(latRef: number, latOffsetKm: number, lngOffsetKm: number)
 export function generateGrid(mode: Mode): GridPoint[] {
   if (mode === 'test') {
     // Test mode: 2 cols x 3 rows centered on Downtown Houston
-    const cols = 2;
-    const rows = 1;
+    const cols = 12;
+    const rows = 12;
     const spacingKm = 2; // ~2 km spacing requested
     const centerLat = TEST_BOUNDARIES.centerLat;
     const centerLng = TEST_BOUNDARIES.centerLng;
