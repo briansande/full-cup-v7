@@ -1,5 +1,7 @@
 'use client';
 import React from 'react';
+import FilterBase from './FilterBase';
+import TextInput from '../ui/TextInput';
 
 interface SearchFilterProps {
   searchText: string;
@@ -9,12 +11,13 @@ interface SearchFilterProps {
 export default function SearchFilter({ searchText, setSearchText }: SearchFilterProps) {
   // Render the search filter
   return (
-    <input
-      aria-label="Search shops"
-      value={searchText}
-      onChange={(e) => setSearchText(e.target.value)}
-      placeholder="Search shops by name"
-      className="cottage-input min-w-[200px]"
-    />
+    <FilterBase label="Search">
+      <TextInput
+        value={searchText}
+        onChange={setSearchText}
+        placeholder="Search shops by name"
+        aria-label="Search shops"
+      />
+    </FilterBase>
   );
 }

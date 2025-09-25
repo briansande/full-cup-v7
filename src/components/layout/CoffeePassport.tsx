@@ -185,36 +185,36 @@ export default function CoffeePassport() {
     });
 
   if (loading) {
-    return <section style={{ marginTop: 16, border: "1px solid #eee", padding: 12, borderRadius: 6 }}><div>Loading Coffee Passport…</div></section>;
+    return <section className="mt-4 border border-gray-200 p-3 rounded-lg"><div>Loading Coffee Passport…</div></section>;
   }
 
   return (
-    <section style={{ marginTop: 16, border: "1px solid #eee", padding: 12, borderRadius: 6 }}>
+    <section className="mt-4 border border-gray-200 p-3 rounded-lg">
       <h2 className="text-lg font-semibold">Coffee Passport</h2>
 
-      {error ? <div style={{ color: "red", marginTop: 8 }}>{error}</div> : null}
+      {error ? <div className="text-red-500 mt-2">{error}</div> : null}
 
-      <div style={{ marginTop: 10, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ padding: 12, borderRadius: 8, background: "#fff", border: "1px solid #f0f0f0", minWidth: 160 }}>
+      <div className="mt-2.5 flex gap-3 items-center flex-wrap">
+        <div className="p-3 rounded-lg bg-white border border-gray-100 min-w-[160px]">
           <div className="text-sm text-gray-600">Level</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{userStats?.level ?? 1}</div>
-          <div style={{ fontSize: 13, color: "#666", marginTop: 6 }}>{totalPoints} points</div>
+          <div className="text-xl font-bold">{userStats?.level ?? 1}</div>
+          <div className="text-xs text-gray-600 mt-1.5">{totalPoints} points</div>
         </div>
 
-        <div style={{ padding: 12, borderRadius: 8, background: "#fff", border: "1px solid #f0f0f0", flex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="p-3 rounded-lg bg-white border border-gray-100 flex-1">
+          <div className="flex justify-between items-center">
             <div>
               <div className="text-sm text-gray-600">Achievements</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{earnedCount} / {totalAchievements}</div>
+              <div className="text-xl font-bold">{earnedCount} / {totalAchievements}</div>
             </div>
             <div>
               <div className="text-sm text-gray-600">Recent</div>
-              <div style={{ fontWeight: 700 }}>{recentEarned.length}</div>
+              <div className="font-bold">{recentEarned.length}</div>
             </div>
           </div>
 
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 13, color: "#666" }}>
+          <div className="mt-2">
+            <div className="text-xs text-gray-600">
               Total recognition points: <strong>{totalPoints}</strong>
             </div>
           </div>
@@ -222,22 +222,22 @@ export default function CoffeePassport() {
       </div>
 
       {/* Recent achievements */}
-      <div style={{ marginTop: 14 }}>
-        <h3 style={{ margin: "8px 0" }}>Recent Achievements</h3>
+      <div className="mt-3.5">
+        <h3 className="my-2 font-medium">Recent Achievements</h3>
         {recentEarned.length === 0 ? (
-          <div style={{ color: "#666" }}>No achievements earned yet. Keep exploring!</div>
+          <div className="text-gray-500">No achievements earned yet. Keep exploring!</div>
         ) : (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="flex gap-2 flex-wrap">
             {recentEarned.map(({ def, ua }) => {
               if (!def) return null;
               return (
-                <div key={def.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: 8, background: "#fff", borderRadius: 8, border: "1px solid #eee" }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 8, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                <div key={def.id} className="flex gap-2 items-center p-2 bg-white rounded-lg border border-gray-200">
+                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-lg">
                     {def.icon ?? "🏅"}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700 }}>{def.name}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>{ua.earned_at ? new Date(ua.earned_at).toLocaleDateString() : ""}</div>
+                    <div className="font-bold">{def.name}</div>
+                    <div className="text-xs text-gray-600">{ua.earned_at ? new Date(ua.earned_at).toLocaleDateString() : ""}</div>
                   </div>
                 </div>
               );
@@ -247,41 +247,41 @@ export default function CoffeePassport() {
       </div>
 
       {/* Achievement categories */}
-      <div style={{ marginTop: 14 }}>
+      <div className="mt-3.5">
         {Object.entries(categories).map(([catName, list]) => {
           if (!list || list.length === 0) return null;
           return (
-            <div key={catName} style={{ marginTop: 12 }}>
-              <h4 style={{ margin: "6px 0" }}>{catName}</h4>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div key={catName} className="mt-3">
+              <h4 className="my-1.5 font-medium">{catName}</h4>
+              <div className="flex gap-2 flex-wrap">
                 {list.map((a) => {
                   const earned = Boolean(userAchievements[a.id]);
                   const prog = achievementProgress(a);
                   return (
-                    <div key={a.id} style={{ width: 220, padding: 10, borderRadius: 8, background: earned ? "#fff" : "#fafafa", border: "1px solid #eee" }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 8, background: earned ? "#efefef" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                    <div key={a.id} className={`w-56 p-2.5 rounded-lg border ${earned ? 'bg-white' : 'bg-gray-50'} border-gray-20`}>
+                      <div className="flex gap-2 items-center">
+                        <div className={`w-11 h-11 rounded-lg ${earned ? 'bg-gray-100' : 'bg-white'} flex items-center justify-center text-lg`}>
                           {a.icon ?? "🏅"}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700 }}>{a.name}</div>
-                          <div style={{ fontSize: 12, color: "#666" }}>{a.description}</div>
+                        <div className="flex-1">
+                          <div className="font-bold">{a.name}</div>
+                          <div className="text-xs text-gray-600">{a.description}</div>
                         </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 700 }}>{a.points} pts</div>
-                          {earned ? <div style={{ fontSize: 12, color: "#10b981" }}>Earned</div> : <div style={{ fontSize: 12, color: "#666" }}>Locked</div>}
+                        <div className="text-right">
+                          <div className="font-bold">{a.points} pts</div>
+                          {earned ? <div className="text-xs text-green-500">Earned</div> : <div className="text-xs text-gray-600">Locked</div>}
                         </div>
                       </div>
 
                       {!earned && prog ? (
-                        <div style={{ marginTop: 8 }}>
+                        <div className="mt-2">
                           {prog.have != null ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <div style={{ fontSize: 13 }}>{prog.have} / {prog.need}</div>
-                              <div style={{ fontSize: 12, color: "#666" }}>{prog.label}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs">{prog.have} / {prog.need}</div>
+                              <div className="text-xs text-gray-600">{prog.label}</div>
                             </div>
                           ) : (
-                            <div style={{ fontSize: 13, color: "#666" }}>{prog.label}</div>
+                            <div className="text-xs text-gray-600">{prog.label}</div>
                           )}
                         </div>
                       ) : null}
@@ -294,8 +294,8 @@ export default function CoffeePassport() {
         })}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <Link href="/profile" className="text-sm" style={{ color: "#2563eb" }}>View full achievements</Link>
+      <div className="mt-3">
+        <Link href="/profile" className="text-sm text-blue-600">View full achievements</Link>
       </div>
     </section>
   );

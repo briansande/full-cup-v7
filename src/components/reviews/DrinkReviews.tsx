@@ -224,7 +224,7 @@ export default function DrinkReviews({ shopId }: Props) {
   }
 
   // Group reviews by drink name + type
-  const grouped = useMemo(() => {
+ const grouped = useMemo(() => {
     const map = new Map<string, { drink_name: string; drink_type: string | null; reviews: DrinkReview[] }>();
     for (const r of reviews) {
       const key = `${r.drink_name.toLowerCase().trim()}|${(r.drink_type ?? "").toLowerCase().trim()}`;
@@ -266,33 +266,24 @@ export default function DrinkReviews({ shopId }: Props) {
     reviews.length > 0 ? reviews.map((r) => ratingToScore(r.rating)).reduce((a, b) => a + b, 0) / reviews.length : 0;
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <h3 style={{ margin: "8px 0" }}>Drink reviews</h3>
+    <div className="mt-4">
+      <h3 className="my-2 font-medium">Drink reviews</h3>
 
       {/* Summary stats */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: 12,
-          color: "#333",
-        }}
-      >
-        <div style={{ background: "#f5f5f5", padding: "8px 10px", borderRadius: 8 }}>
+      <div className="flex gap-3 items-center flex-wrap mb-3 text-gray-700">
+        <div className="bg-gray-100 p-2 rounded-lg">
           Drinks reviewed: <strong>{totalDrinks}</strong>
         </div>
-        <div style={{ background: "#f5f5f5", padding: "8px 10px", borderRadius: 8 }}>
+        <div className="bg-gray-10 p-2 rounded-lg">
           Total reviews: <strong>{totalReviews}</strong>
         </div>
-        <div style={{ background: "#f5f5f5", padding: "8px 10px", borderRadius: 8 }}>
+        <div className="bg-gray-100 p-2 rounded-lg">
           Average: <strong>{overallAvg ? `${overallAvg.toFixed(2)} (${scoreToLabel(overallAvg)})` : "N/A"}</strong>
         </div>
       </div>
 
       {!userId ? (
-        <div style={{ color: "#666", marginBottom: 12 }}>
+        <div className="text-gray-500 mb-3">
           Sign in to add or manage your drink reviews. The login form is in the header.
         </div>
       ) : null}
@@ -316,46 +307,32 @@ export default function DrinkReviews({ shopId }: Props) {
         {loading ? (
           <div>Loading drink reviews…</div>
         ) : reviews.length === 0 ? (
-          <div style={{ color: "#666" }}>No drink reviews yet. Be the first to add one.</div>
+          <div className="text-gray-500">No drink reviews yet. Be the first to add one.</div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3">
             {grouped.map((g) => (
               <div
                 key={`${g.drink_name}|${g.drink_type ?? ""}`}
-                style={{
-                  padding: 12,
-                  background: "#ffffff",
-                  borderRadius: 8,
-                  border: "1px solid #eee",
-                  boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
-                }}
+                className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontWeight: 700 }}>
+                <div className="flex justify-between items-center gap-2">
+                  <div className="font-semibold">
                     {g.drink_name} {g.drink_type ? `· ${g.drink_type}` : null}
-                    <div style={{ fontSize: 13, color: "#555", fontWeight: 600, marginTop: 6 }}>
+                    <div className="text-xs text-gray-600 font-medium mt-1">
                       {g.count} review{g.count > 1 ? "s" : ""} • Avg: {g.avgScore.toFixed(2)} ({g.avgLabel})
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                    <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{g.avgLabel}</div>
+                  <div className="flex gap-2 items-center whitespace-nowrap">
+                    <div className="font-semibold capitalize">{g.avgLabel}</div>
                   </div>
                 </div>
 
-                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="mt-2.5 flex flex-col gap-2">
                   {g.reviews.map((r) => (
                     <div
                       key={r.id}
-                      style={{
-                        padding: 10,
-                        background: "#fafafa",
-                        borderRadius: 6,
-                        border: "1px solid #f0f0f0",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                      }}
+                      className="p-2.5 bg-gray-50 rounded-md border border-gray-100 flex-col gap-1.5"
                     >
                       {editingId === r.id ? (
                         <EditDrinkReviewForm
@@ -373,51 +350,37 @@ export default function DrinkReviews({ shopId }: Props) {
                         />
                       ) : (
                         <>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div style={{ fontWeight: 700 }}>
+                          <div className="flex justify-between items-center">
+                            <div className="font-semibold">
                               {r.drink_name} {r.drink_type ? `· ${r.drink_type}` : null}
-                              <div style={{ fontSize: 13, color: "#666", fontWeight: 600, marginTop: 4 }}>
+                              <div className="text-xs text-gray-600 font-medium mt-1">
                                 {r.rating.charAt(0).toUpperCase() + r.rating.slice(1)}
                               </div>
                             </div>
 
-                            <div style={{ textAlign: "right" }}>
-                              <div style={{ fontSize: 12, color: "#666" }}>
+                            <div className="text-right">
+                              <div className="text-xs text-gray-600">
                                 {r.user_id === userId ? "You" : `${r.user_id.substring(0, 6)}...`}
                               </div>
-                              <div style={{ fontSize: 12, color: "#666" }}>
+                              <div className="text-xs text-gray-60">
                                 {r.created_at ? new Date(r.created_at).toLocaleString() : "unknown"}
                               </div>
                             </div>
                           </div>
 
-                          {r.review_text ? <div style={{ marginTop: 6 }}>{r.review_text}</div> : null}
+                          {r.review_text ? <div className="mt-1.5">{r.review_text}</div> : null}
 
                           {r.user_id === userId ? (
-                            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <div className="flex gap-2 mt-2">
                               <button
                                 onClick={() => startEdit(r)}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: 6,
-                                  border: "1px solid #d1d5db",
-                                  background: "#fff",
-                                  color: "#111827",
-                                  fontWeight: 600,
-                                }}
+                                className="px-2.5 py-1.5 rounded-md border border-gray-30 bg-white text-gray-900 font-medium"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => deleteReview(r.id)}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: 6,
-                                  border: "1px solid #fee2e2",
-                                  background: "#fff",
-                                  color: "#b91c1c",
-                                  fontWeight: 600,
-                                }}
+                                className="px-2.5 py-1.5 rounded-md border border-red-200 bg-white text-red-600 font-medium"
                               >
                                 Delete
                               </button>

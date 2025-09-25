@@ -11,39 +11,32 @@ type Props = {
 function DrinkReviewItem({ review, userId, onStartEdit, onDelete }: Props) {
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontWeight: 700 }}>
+      <div className="flex justify-between items-center">
+        <div className="font-semibold">
           {review.drink_name} {review.drink_type ? `· ${review.drink_type}` : null}
-          <div style={{ fontSize: 13, color: "#666", fontWeight: 600, marginTop: 4 }}>
+          <div className="text-xs text-gray-600 font-medium mt-1">
             {review.rating.charAt(0).toUpperCase() + review.rating.slice(1)}
           </div>
         </div>
 
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 12, color: "#666" }}>
+        <div className="text-right">
+          <div className="text-xs text-gray-600">
             {userId && review.user_id === userId ? "You" : `${review.user_id.substring(0, 6)}...`}
           </div>
-          <div style={{ fontSize: 12, color: "#666" }}>
+          <div className="text-xs text-gray-600">
             {review.created_at ? new Date(review.created_at).toLocaleString() : "unknown"}
           </div>
         </div>
       </div>
 
-      {review.review_text ? <div style={{ marginTop: 6 }}>{review.review_text}</div> : null}
+      {review.review_text ? <div className="mt-1.5">{review.review_text}</div> : null}
 
       {userId && review.user_id === userId && (onStartEdit || onDelete) ? (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div className="flex gap-2 mt-2">
           {onStartEdit && (
             <button
               onClick={() => onStartEdit(review)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                background: "#fff",
-                color: "#111827",
-                fontWeight: 600,
-              }}
+              className="px-2.5 py-1.5 rounded-md border border-gray-300 bg-white text-gray-900 font-medium"
             >
               Edit
             </button>
@@ -51,14 +44,7 @@ function DrinkReviewItem({ review, userId, onStartEdit, onDelete }: Props) {
           {onDelete && (
             <button
               onClick={() => onDelete(review.id)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 6,
-                border: "1px solid #fee2e2",
-                background: "#fff",
-                color: "#b91c1c",
-                fontWeight: 600,
-              }}
+              className="px-2.5 py-1.5 rounded-md border border-red-200 bg-white text-red-600 font-medium"
             >
               Delete
             </button>

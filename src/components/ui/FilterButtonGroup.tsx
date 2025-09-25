@@ -1,11 +1,12 @@
 'use client';
 import React from 'react';
+import ButtonGroup, { ButtonOption } from './ButtonGroup';
 
 export interface FilterOption {
-  value: string | number | null;
+ value: string | number | null;
   label: string;
-  color?: string;
-  hoverColor?: string;
+ color?: string;
+ hoverColor?: string;
 }
 
 export interface FilterButtonGroupProps {
@@ -35,53 +36,11 @@ export default function FilterButtonGroup({
   disabled = false,
   'aria-label': ariaLabel,
 }: FilterButtonGroupProps) {
-  const getButtonStyles = (option: FilterOption, isActive: boolean) => {
-    const baseClasses = 'cottage-button px-3 py-2 transition-all duration-200';
-
-    if (variant === 'status' && option.color) {
-      return `${baseClasses} ${
-        isActive
-          ? `${option.color} text-white border-[${option.color}] shadow-md`
-          : `hover:bg-[${option.hoverColor || option.color}]/20`
-      }`;
-    }
-
-    if (variant === 'date') {
-      return `${baseClasses} ${
-        isActive
-          ? 'bg-[--cottage-accent] text-white border-[--cottage-accent] shadow-md'
-          : 'hover:bg-[--cottage-secondary]/50'
-      }`;
-    }
-
-    if (variant === 'primary') {
-      return `${baseClasses} ${
-        isActive
-          ? 'bg-[--cottage-primary] text-white border-[--cottage-primary] shadow-md'
-          : 'text-[--cottage-neutral-dark]/70 hover:bg-[--cottage-secondary]/50'
-      }`;
-    }
-
-    // Default variant
-    return `${baseClasses} ${
-      isActive
-        ? 'cottage-button-primary shadow-md'
-        : 'hover:bg-[--cottage-secondary]/50'
-    }`;
-  };
-
-  const handleButtonClick = (optionValue: string | number | null) => {
-    if (disabled) return;
-
-    if (multiSelect) {
-      // For multi-select, toggle the value
-      const newValue = value === optionValue ? null : optionValue;
-      onChange(newValue);
-    } else {
-      // For single-select, set the value directly
-      onChange(optionValue);
-    }
-  };
+  // Map the FilterOption type to ButtonOption type
+  const buttonOptions = options.map(option => ({
+    value: option.value,
+    label: option.label
+  }));
 
   const handleClearClick = () => {
     if (disabled) return;
@@ -90,22 +49,17 @@ export default function FilterButtonGroup({
 
   return (
     <div className={`flex gap-2 items-center flex-wrap ${className}`}>
-      {options.map((option) => {
-        const isActive = value === option.value;
-        return (
-          <button
-            key={String(option.value)}
-            onClick={() => handleButtonClick(option.value)}
-            className={`${getButtonStyles(option, isActive)} ${buttonClassName}`}
-            disabled={disabled}
-            aria-pressed={isActive}
-            type="button"
-          >
-            {option.label}
-          </button>
-        );
-      })}
-
+      <ButtonGroup
+        options={buttonOptions}
+        value={value}
+        onChange={onChange}
+        variant={variant as 'default' | 'status' | 'date' | 'primary' | 'rating' | 'filter'} // Type assertion to match ButtonGroup's variant
+        multiSelect={multiSelect}
+        aria-label={ariaLabel}
+        className={buttonClassName}
+        disabled={disabled}
+      />
+      
       {showClearButton && (
         <button
           onClick={handleClearClick}

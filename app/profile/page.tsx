@@ -471,7 +471,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 16, maxWidth: 960, margin: "0 auto" }}>
+      <div className="p-4 max-w-4xl mx-auto">
         <div>Loading profile...</div>
       </div>
     );
@@ -487,48 +487,40 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ margin: 0 }}>Profile</h1>
+    <div className="p-4 max-w-4xl mx-auto">
+      <div className="flex justify-between items-center">
+        <h1 className="m-0">Profile</h1>
         <Link href="/" className="text-sm">Back</Link>
       </div>
 
-      <section style={{ marginTop: 16, border: "1px solid #eee", padding: 12, borderRadius: 6 }}>
+      <section className="mt-4 border border-gray-200 p-3 rounded-lg">
         <h2 className="text-lg font-semibold">Basic Information</h2>
 
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div><strong>Display name:</strong> {displayName ? <span>{displayName}</span> : <em style={{ color: "#666" }}>Not set</em>}</div>
+        <div className="mt-2 flex flex-col gap-2">
+          <div><strong>Display name:</strong> {displayName ? <span>{displayName}</span> : <em className="text-gray-500">Not set</em>}</div>
           <div><strong>Email:</strong> {user.email}</div>
           <div><strong>Member since:</strong> {formatDate(stats.memberSince)}</div>
 
           {editingProfile ? (
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="mt-2 flex flex-col gap-2">
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Display name"
-                style={{ padding: 8, borderRadius: 6, border: "1px solid #d1d5db" }}
+                className="p-2 rounded-md border border-gray-300"
               />
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
                 placeholder="Short bio (what you like about coffee...)"
-                style={{ padding: 8, borderRadius: 6, border: "1px solid #d1d5db", resize: "vertical" }}
+                className="p-2 rounded-md border border-gray-300 resize-y"
               />
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="flex gap-2">
                 <button
                   onClick={() => saveProfile()}
                   disabled={savingProfile}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #111827",
-                    background: "#111827",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
+                  className={`px-3 py-2 rounded-md border ${savingProfile ? 'bg-gray-200' : 'bg-black text-white'}`}
                 >
                   {savingProfile ? "Saving…" : "Save profile"}
                 </button>
@@ -538,35 +530,19 @@ export default function ProfilePage() {
                     setEditingProfile(false);
                   }}
                   disabled={savingProfile}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    background: "#fff",
-                    color: "#111827",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
+                  className={`px-3 py-2 rounded-md border ${savingProfile ? 'bg-gray-200' : 'bg-white'}`}
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ color: "#444" }}>{bio ? bio : <span style={{ color: "#666" }}>No bio yet. Tell others what coffee you like.</span>}</div>
-              <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
+              <div className="text-gray-700">{bio ? bio : <span className="text-gray-500">No bio yet. Tell others what coffee you like.</span>}</div>
+              <div className="mt-2">
                 <button
                   onClick={() => setEditingProfile(true)}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #111827",
-                    background: "#fff",
-                    color: "#111827",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
+                  className="px-2.5 py-1.5 rounded-md border border-black bg-white font-bold"
                 >
                   Edit profile
                 </button>
@@ -576,30 +552,30 @@ export default function ProfilePage() {
         </div>
 
         {/* Top reviewed drinks summary */}
-        <div style={{ marginTop: 12 }}>
-          <h3 style={{ margin: "8px 0" }}>Favorite drinks</h3>
+        <div className="mt-3">
+          <h3 className="my-2 font-medium">Favorite drinks</h3>
           {topDrinks.length === 0 ? (
-            <div style={{ color: "#666" }}>No drink reviews yet to summarise.</div>
+            <div className="text-gray-500">No drink reviews yet to summarise.</div>
           ) : (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="flex gap-2 flex-wrap">
               {topDrinks.map((d) => (
-                <div key={d.name} style={{ padding: "6px 10px", background: "#f5f5f5", borderRadius: 8 }}>
-                  {d.name} <strong style={{ marginLeft: 6 }}>×{d.count}</strong>
+                <div key={d.name} className="p-1.5 bg-gray-100 rounded-md">
+                  {d.name} <strong className="ml-1.5">×{d.count}</strong>
                 </div>
               ))}
             </div>
           )}
 
           {/* Favorite drink types */}
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ margin: "6px 0" }}>Top drink types</h4>
+          <div className="mt-2">
+            <h4 className="my-1.5 font-medium">Top drink types</h4>
             {topDrinkTypes.length === 0 ? (
-              <div style={{ color: "#666" }}>No drink type data yet.</div>
+              <div className="text-gray-500">No drink type data yet.</div>
             ) : (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="flex gap-2 flex-wrap">
                 {topDrinkTypes.map((t) => (
-                  <div key={t.type} style={{ padding: "6px 10px", background: "#f7f7f7", borderRadius: 8 }}>
-                    {t.type} <strong style={{ marginLeft: 6 }}>×{t.count}</strong>
+                  <div key={t.type} className="p-1.5 bg-gray-100 rounded-md">
+                    {t.type} <strong className="ml-1.5">×{t.count}</strong>
                   </div>
                 ))}
               </div>
@@ -608,84 +584,84 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section style={{ marginTop: 16, border: "1px solid #eee", padding: 12, borderRadius: 6 }}>
+      <section className="mt-4 border border-gray-200 p-3 rounded-lg">
         <h2 className="text-lg font-semibold">Activity Summary</h2>
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 }}>
-          <div style={{ padding: 8, border: "1px solid #f0f0f0", borderRadius: 6 }}>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="p-2 border border-gray-100 rounded-md">
             <div className="text-sm text-gray-600">Shops visited</div>
-            <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.visited}</div>
+            <div className="font-bold text-xl">{stats.visited}</div>
           </div>
 
-          <div style={{ padding: 8, border: "1px solid #f0f0f0", borderRadius: 6 }}>
+          <div className="p-2 border border-gray-100 rounded-md">
             <div className="text-sm text-gray-600">Favorites</div>
-            <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.favorite}</div>
+            <div className="font-bold text-xl">{stats.favorite}</div>
           </div>
 
-          <div style={{ padding: 8, border: "1px solid #f0f0f0", borderRadius: 6 }}>
+          <div className="p-2 border border-gray-100 rounded-md">
             <div className="text-sm text-gray-600">Want to try</div>
-            <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.want_to_try}</div>
+            <div className="font-bold text-xl">{stats.want_to_try}</div>
           </div>
 
-          <div style={{ padding: 8, border: "1px solid #f0f0f0", borderRadius: 6 }}>
+          <div className="p-2 border border-gray-100 rounded-md">
             <div className="text-sm text-gray-600">Shop reviews</div>
-            <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.shopReviews}</div>
+            <div className="font-bold text-xl">{stats.shopReviews}</div>
           </div>
 
-          <div style={{ padding: 8, border: "1px solid #f0f0f0", borderRadius: 6 }}>
+          <div className="p-2 border border-gray-100 rounded-md">
             <div className="text-sm text-gray-600">Drink reviews</div>
-            <div style={{ fontWeight: 600, fontSize: 18 }}>{stats.drinkReviews}</div>
+            <div className="font-bold text-xl">{stats.drinkReviews}</div>
           </div>
         </div>
       </section>
-{/* Coffee Passport */}
-      <section style={{ marginTop: 16 }}>
+ {/* Coffee Passport */}
+      <section className="mt-4">
         <CoffeePassport />
       </section>
 
       {/* Quick navigation */}
-      <section style={{ marginTop: 12 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/" style={{ padding: "8px 10px", borderRadius: 8, background: "#f3f4f6", fontWeight: 600 }}>Map</Link>
-          <Link href="/new-shops" style={{ padding: "8px 10px", borderRadius: 8, background: "#f3f4f6", fontWeight: 600 }}>New shops</Link>
-          <Link href="/random" style={{ padding: "8px 10px", borderRadius: 8, background: "#f3f4f6", fontWeight: 600 }}>Random shop</Link>
-          <Link href="/profile" style={{ padding: "8px 10px", borderRadius: 8, background: "#f3f4f6", fontWeight: 600 }}>My profile</Link>
+      <section className="mt-3">
+        <div className="flex gap-2 flex-wrap">
+          <Link href="/" className="p-2 bg-gray-100 rounded-md font-medium">Map</Link>
+          <Link href="/new-shops" className="p-2 bg-gray-100 rounded-md font-medium">New shops</Link>
+          <Link href="/random" className="p-2 bg-gray-100 rounded-md font-medium">Random shop</Link>
+          <Link href="/profile" className="p-2 bg-gray-100 rounded-md font-medium">My profile</Link>
         </div>
       </section>
 
       {error ? (
-        <div style={{ marginTop: 12, color: "red" }}>Error loading profile: {error}</div>
+        <div className="mt-3 text-red-500">Error loading profile: {error}</div>
       ) : null}
 
       {/* My Shop Reviews */}
-      <section style={{ marginTop: 18 }}>
+      <section className="mt-4.5">
         <h2 className="text-lg font-semibold">My Shop Reviews</h2>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           {shopReviewsLoading && shopReviewsList.length === 0 ? (
             <div>Loading shop reviews…</div>
           ) : shopReviewsList.length === 0 ? (
-            <div style={{ color: "#666" }}>
-              No shop reviews yet. <Link href="/new-shops" style={{ color: "#2563eb", marginLeft: 8 }}>Explore shops</Link>
+            <div className="text-gray-500">
+              No shop reviews yet. <Link href="/new-shops" className="text-blue-600 ml-2">Explore shops</Link>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="flex flex-col gap-2.5">
               {shopReviewsList.map((r) => (
-                <div key={r.id} style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", background: "#fff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={r.id} className="p-3 rounded-md border border-gray-200 bg-white">
+                  <div className="flex justify-between items-center">
                     <div>
                       {r.shop ? (
-                        <Link href={`/shop/${r.shop.id}`} style={{ fontWeight: 700 }}>
+                        <Link href={`/shop/${r.shop.id}`} className="font-bold">
                           {r.shop.name}
                         </Link>
                       ) : (
-                        <span style={{ fontWeight: 700 }}>Shop</span>
+                        <span className="font-bold">Shop</span>
                       )}
-                      <div style={{ fontSize: 13, color: "#666", marginTop: 6 }}>
-                        {r.review_text ? <span>{r.review_text}</span> : <span style={{ color: "#999" }}>No comment</span>}
+                      <div className="text-xs text-gray-600 mt-1.5">
+                        {r.review_text ? <span>{r.review_text}</span> : <span className="text-gray-400">No comment</span>}
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 700 }}>{r.rating} ★</div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>{r.created_at ? new Date(r.created_at).toLocaleString() : "unknown"}</div>
+                    <div className="text-right">
+                      <div className="font-bold">{r.rating} ★</div>
+                      <div className="text-xs text-gray-600 mt-1.5">{r.created_at ? new Date(r.created_at).toLocaleString() : "unknown"}</div>
                     </div>
                   </div>
                 </div>
@@ -694,19 +670,11 @@ export default function ProfilePage() {
           )}
 
           {shopReviewsHasMore ? (
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
               <button
                 onClick={() => loadMoreShopReviews()}
                 disabled={shopReviewsLoading}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
+                className={`px-3 py-2 rounded-md border ${shopReviewsLoading ? 'bg-gray-200' : 'bg-black text-white'}`}
               >
                 {shopReviewsLoading ? "Loading…" : "Show more"}
               </button>
@@ -716,36 +684,36 @@ export default function ProfilePage() {
       </section>
 
       {/* My Drink Reviews */}
-      <section style={{ marginTop: 18 }}>
+      <section className="mt-4.5">
         <h2 className="text-lg font-semibold">My Drink Reviews</h2>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           {drinkReviewsLoading && drinkReviewsList.length === 0 ? (
             <div>Loading drink reviews…</div>
           ) : drinkReviewsList.length === 0 ? (
-            <div style={{ color: "#666" }}>
-              No drink reviews yet. <Link href="/new-shops" style={{ color: "#2563eb", marginLeft: 8 }}>Try a shop</Link>
+            <div className="text-gray-500">
+              No drink reviews yet. <Link href="/new-shops" className="text-blue-600 ml-2">Try a shop</Link>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="flex flex-col gap-2.5">
               {drinkReviewsList.map((r) => (
-                <div key={r.id} style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", background: "#fff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={r.id} className="p-3 rounded-md border border-gray-200 bg-white">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <div style={{ fontWeight: 700 }}>{r.drink_name}{r.drink_type ? ` · ${r.drink_type}` : ""}</div>
-                      <div style={{ fontSize: 13, color: "#666", marginTop: 6 }}>
-                        {r.review_text ? <span>{r.review_text}</span> : <span style={{ color: "#999" }}>No comment</span>}
+                      <div className="font-bold">{r.drink_name}{r.drink_type ? ` · ${r.drink_type}` : ""}</div>
+                      <div className="text-xs text-gray-600 mt-1.5">
+                        {r.review_text ? <span>{r.review_text}</span> : <span className="text-gray-400">No comment</span>}
                       </div>
                       {r.shop ? (
-                        <div style={{ marginTop: 6 }}>
-                          <Link href={`/shop/${r.shop.id}`} className="text-sm" style={{ color: "#2563eb" }}>
+                        <div className="mt-1.5">
+                          <Link href={`/shop/${r.shop.id}`} className="text-sm text-blue-600">
                             View shop: {r.shop.name}
                           </Link>
                         </div>
                       ) : null}
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 700 }}>{ratingLabelForDrink(r.rating)}</div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>{r.created_at ? new Date(r.created_at).toLocaleString() : "unknown"}</div>
+                    <div className="text-right">
+                      <div className="font-bold">{ratingLabelForDrink(r.rating)}</div>
+                      <div className="text-xs text-gray-600 mt-1.5">{r.created_at ? new Date(r.created_at).toLocaleString() : "unknown"}</div>
                     </div>
                   </div>
                 </div>
@@ -754,19 +722,11 @@ export default function ProfilePage() {
           )}
 
           {drinkReviewsHasMore ? (
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
               <button
                 onClick={() => loadMoreDrinkReviews()}
                 disabled={drinkReviewsLoading}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
+                className={`px-3 py-2 rounded-md border ${drinkReviewsLoading ? 'bg-gray-200' : 'bg-black text-white'}`}
               >
                 {drinkReviewsLoading ? "Loading…" : "Show more"}
               </button>
@@ -776,37 +736,37 @@ export default function ProfilePage() {
       </section>
 
       {/* My Shop Lists (visited / favorites / want to try) */}
-      <section style={{ marginTop: 18 }}>
+      <section className="mt-4.5">
         <h2 className="text-lg font-semibold">My Shop Lists</h2>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           {shopListsLoading && shopLists.length === 0 ? (
             <div>Loading your shop lists…</div>
           ) : shopLists.length === 0 ? (
-            <div style={{ color: "#666" }}>You haven&apos;t marked any shops yet. <Link href="/new-shops" style={{ color: "#2563eb", marginLeft: 8 }}>Find shops</Link></div>
+            <div className="text-gray-500">You haven't marked any shops yet. <Link href="/new-shops" className="text-blue-600 ml-2">Find shops</Link></div>
           ) : (
             // Group by status
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="flex flex-col gap-2.5">
               {["visited", "favorite", "want_to_try"].map((status) => {
                 const group = shopLists.filter((s) => s.status === status);
                 if (group.length === 0) return null;
                 return (
-                  <div key={status} style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", background: "#fff" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{status.replace("_", " ")}</div>
+                  <div key={status} className="p-3 rounded-md border border-gray-200 bg-white">
+                    <div className="flex justify-between items-center">
+                      <div className="font-bold capitalize">{status.replace("_", " ")}</div>
                     </div>
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="mt-2 flex flex-col gap-2">
                       {group.map((g) => (
-                        <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div key={g.id} className="flex justify-between items-center">
                           <div>
                             {g.shop ? (
-                              <Link href={`/shop/${g.shop.id}`} style={{ fontWeight: 600 }}>
+                              <Link href={`/shop/${g.shop.id}`} className="font-medium">
                                 {g.shop.name}
                               </Link>
                             ) : (
-                              <span style={{ fontWeight: 600 }}>Shop</span>
+                              <span className="font-medium">Shop</span>
                             )}
                           </div>
-                          <div style={{ fontSize: 12, color: "#666" }}>{g.created_at ? new Date(g.created_at).toLocaleString() : "unknown"}</div>
+                          <div className="text-xs text-gray-600">{g.created_at ? new Date(g.created_at).toLocaleString() : "unknown"}</div>
                         </div>
                       ))}
                     </div>
@@ -817,19 +777,11 @@ export default function ProfilePage() {
           )}
 
           {shopListsHasMore ? (
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
               <button
                 onClick={() => loadMoreShopLists()}
                 disabled={shopListsLoading}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
+                className={`px-3 py-2 rounded-md border ${shopListsLoading ? 'bg-gray-200' : 'bg-black text-white'}`}
               >
                 {shopListsLoading ? "Loading…" : "Show more"}
               </button>

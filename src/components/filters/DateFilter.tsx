@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import FilterButtonGroup, { FilterOption } from '../ui/FilterButtonGroup';
+import FilterBase from './FilterBase';
 
 interface DateFilterProps {
   dateDays: number | null;
@@ -15,8 +16,7 @@ export default function DateFilter({ dateDays, setDateDays, DATE_FILTER_OPTIONS 
   }));
 
   return (
-    <div className="flex gap-2 items-center flex-wrap ml-1">
-      <div className="text-[--cottage-neutral-dark]/70 text-sm">Show New Shops</div>
+    <FilterBase label="Show New Shops">
       <FilterButtonGroup
         options={dateOptions}
         value={dateDays}
@@ -26,6 +26,6 @@ export default function DateFilter({ dateDays, setDateDays, DATE_FILTER_OPTIONS 
         clearButtonLabel="Clear"
         aria-label="Date filter"
       />
-    </div>
+    </FilterBase>
   );
 }

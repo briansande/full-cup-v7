@@ -2,6 +2,9 @@
 import React from 'react';
 import RatingButton from '../ui/RatingButton';
 import StatusMessage from '../ui/StatusMessage';
+import FormField from '../ui/FormField';
+import TextArea from '../ui/TextArea';
+import { ButtonGroup } from '../ui';
 
 interface ReviewFormProps {
   coffeeQuality: number;
@@ -47,42 +50,45 @@ export default function ReviewForm({
   // Render the review form
   return (
     <form onSubmit={(e) => handleSubmit(e)} className="mb-4">
-      <div className="rating-group">
-        <RatingButton
-          label="Coffee quality"
+      <FormField label="Coffee quality" required={true}>
+        <ButtonGroup
+          options={[
+            { value: 1, label: "1 ★", showStar: true },
+            { value: 2, label: "2 ★", showStar: true },
+            { value: 3, label: "3 ★", showStar: true },
+            { value: 4, label: "4 ★", showStar: true },
+            { value: 5, label: "5 ★", showStar: true }
+          ]}
           value={coffeeQuality}
           onChange={setCoffeeQuality}
-          required={true}
-          options={[
-            { value: 1, label: "1 ★" },
-            { value: 2, label: "2 ★" },
-            { value: 3, label: "3 ★" },
-            { value: 4, label: "4 ★" },
-            { value: 5, label: "5 ★" }
-          ]}
+          variant="rating"
+          aria-label="Coffee quality"
         />
+      </FormField>
 
-        <RatingButton
-          label="Atmosphere"
-          value={atmosphere}
-          onChange={setAtmosphere}
-          required={false}
+      <FormField label="Atmosphere" required={false}>
+        <ButtonGroup
           options={[
             { value: null, label: "N/A" },
-            { value: 1, label: "1 ★" },
-            { value: 2, label: "2 ★" },
-            { value: 3, label: "3 ★" },
-            { value: 4, label: "4 ★" },
-            { value: 5, label: "5 ★" }
+            { value: 1, label: "1 ★", showStar: true },
+            { value: 2, label: "2 ★", showStar: true },
+            { value: 3, label: "3 ★", showStar: true },
+            { value: 4, label: "4 ★", showStar: true },
+            { value: 5, label: "5 ★", showStar: true }
           ]}
+          value={atmosphere}
+          onChange={setAtmosphere}
+          variant="rating"
+          aria-label="Atmosphere"
         />
+      </FormField>
 
-        <RatingButton
-          label="Noise level"
-          value={noiseLevel}
-          onChange={setNoiseLevel}
-          required={false}
-          description="(1=quiet, 5=loud)"
+      <FormField 
+        label="Noise level" 
+        required={false} 
+        description="(1=quiet, 5=loud)"
+      >
+        <ButtonGroup
           options={[
             { value: null, label: "N/A" },
             { value: 1, label: "1" },
@@ -91,64 +97,72 @@ export default function ReviewForm({
             { value: 4, label: "4" },
             { value: 5, label: "5" }
           ]}
+          value={noiseLevel}
+          onChange={setNoiseLevel}
+          variant="rating"
+          aria-label="Noise level"
         />
+      </FormField>
 
-        <RatingButton
-          label="WiFi quality"
-          value={wifiQuality}
-          onChange={setWifiQuality}
-          required={false}
+      <FormField label="WiFi quality" required={false}>
+        <ButtonGroup
           options={[
             { value: "na", label: "N/A" },
-            { value: 1, label: "1 ★" },
-            { value: 2, label: "2 ★" },
-            { value: 3, label: "3 ★" },
-            { value: 4, label: "4 ★" },
-            { value: 5, label: "5 ★" }
+            { value: 1, label: "1 ★", showStar: true },
+            { value: 2, label: "2 ★", showStar: true },
+            { value: 3, label: "3 ★", showStar: true },
+            { value: 4, label: "4 ★", showStar: true },
+            { value: 5, label: "5 ★", showStar: true }
           ]}
+          value={wifiQuality}
+          onChange={setWifiQuality}
+          variant="rating"
+          aria-label="WiFi quality"
         />
+      </FormField>
 
-        <RatingButton
-          label="Work environment"
+      <FormField label="Work environment" required={false}>
+        <ButtonGroup
+          options={[
+            { value: null, label: "N/A" },
+            { value: 1, label: "1 ★", showStar: true },
+            { value: 2, label: "2 ★", showStar: true },
+            { value: 3, label: "3 ★", showStar: true },
+            { value: 4, label: "4 ★", showStar: true },
+            { value: 5, label: "5 ★", showStar: true }
+          ]}
           value={workFriendliness}
           onChange={setWorkFriendliness}
-          required={false}
+          variant="rating"
+          aria-label="Work environment"
+        />
+      </FormField>
+
+      <FormField label="Service" required={false}>
+        <ButtonGroup
           options={[
             { value: null, label: "N/A" },
-            { value: 1, label: "1 ★" },
-            { value: 2, label: "2 ★" },
-            { value: 3, label: "3 ★" },
-            { value: 4, label: "4 ★" },
-            { value: 5, label: "5 ★" }
+            { value: 1, label: "1 ★", showStar: true },
+            { value: 2, label: "2 ★", showStar: true },
+            { value: 3, label: "3 ★", showStar: true },
+            { value: 4, label: "4 ★", showStar: true },
+            { value: 5, label: "5 ★", showStar: true }
           ]}
-        />
-
-        <RatingButton
-          label="Service"
           value={service}
           onChange={setService}
-          required={false}
-          options={[
-            { value: null, label: "N/A" },
-            { value: 1, label: "1 ★" },
-            { value: 2, label: "2 ★" },
-            { value: 3, label: "3 ★" },
-            { value: 4, label: "4 ★" },
-            { value: 5, label: "5 ★" }
-          ]}
+          variant="rating"
+          aria-label="Service"
         />
-      </div>
+      </FormField>
 
-      <div className="form-field">
-        <label>Your review (optional)</label>
-        <textarea
+      <FormField label="Your review (optional)">
+        <TextArea
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          className="form-textarea"
+          onChange={setText}
           placeholder="Share a short thought about this shop..."
+          rows={4}
         />
-      </div>
+      </FormField>
 
       <div className="form-actions-end">
         <button
@@ -180,5 +194,5 @@ export default function ReviewForm({
         {error && <StatusMessage type="error" message={error} />}
       </div>
     </form>
-  );
+ );
 }

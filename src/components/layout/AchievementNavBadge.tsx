@@ -37,6 +37,7 @@ export default function AchievementNavBadge() {
               return;
             }
             const uaRows = Array.isArray(uaRes.data) ? uaRes.data as { achievement_id: string }[] : [];
+
             const earnedIds = uaRows.map((r) => r.achievement_id);
 
             // Read seen map from localStorage
@@ -62,7 +63,7 @@ export default function AchievementNavBadge() {
         window.addEventListener("fullcup:sync", onUpdated);
 
         // Poll as fallback
-        const handle = window.setInterval(() => refresh(), 30000);
+        const handle = window.setInterval(() => refresh(), 3000);
 
         return () => {
           mounted = false;
@@ -84,10 +85,10 @@ export default function AchievementNavBadge() {
   if (!userId) return null;
 
   return (
-    <Link href="/profile" style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#111827", textDecoration: "none" }}>
-      <span style={{ padding: "6px 8px", borderRadius: 6, background: "#f3f4f6", fontWeight: 700 }}>Passport</span>
+    <Link href="/profile" className="inline-flex items-center gap-2 text-gray-900 no-underline">
+      <span className="px-2 py-1.5 rounded-md bg-gray-100 font-bold">Passport</span>
       {count > 0 ? (
-        <span aria-live="polite" style={{ minWidth: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 999, background: "#ef4444", color: "#fff", fontSize: 12, fontWeight: 700 }}>
+        <span aria-live="polite" className="min-w-[22px] h-5.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">
           {count}
         </span>
       ) : null}

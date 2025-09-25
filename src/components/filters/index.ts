@@ -1,3 +1,4 @@
+export { default as FilterBase } from './FilterBase';
 export { default as ClearFiltersButton } from './ClearFiltersButton';
 export { default as DateFilter } from './DateFilter';
 export { default as DistanceFilter } from './DistanceFilter';

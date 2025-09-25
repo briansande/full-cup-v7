@@ -80,7 +80,7 @@ export default function AchievementNotifier() {
     };
   }, []);
 
-  // Fetch user achievements and show toasts for any not-seen
+ // Fetch user achievements and show toasts for any not-seen
   async function fetchNewAchievements(uid: string) {
     if (polling) return;
     setPolling(true);
@@ -159,22 +159,22 @@ export default function AchievementNotifier() {
   if (!userId) return null;
 
   return (
-    <div style={{ position: "fixed", right: 12, bottom: 12, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="fixed right-3 bottom-3 z-[9999] flex flex-col gap-2">
       {toasts.map((t) => (
-        <div key={t.id} style={{ minWidth: 260, maxWidth: 420, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 12, boxShadow: "0 6px 18px rgba(0,0,0,0.08)" }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 8, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+        <div key={t.id} className="min-w-[260px] max-w-[420px] bg-white border border-gray-20 rounded-lg p-3 shadow-lg shadow-black/5" >
+          <div className="flex gap-2.5">
+            <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center text-xl">
               {t.icon}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800 }}>{t.name}</div>
-              {t.description ? <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>{t.description}</div> : null}
-              <div style={{ marginTop: 8 }}>
-                <a href="/profile" style={{ color: "#2563eb", fontSize: 13 }}>View Coffee Passport</a>
+            <div className="flex-1">
+              <div className="font-extrabold">{t.name}</div>
+              {t.description ? <div className="text-xs text-gray-500 mt-1.5">{t.description}</div> : null}
+              <div className="mt-2">
+                <a href="/profile" className="text-blue-600 text-xs">View Coffee Passport</a>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <button onClick={() => dismissToast(t.id)} style={{ border: 0, background: "transparent", cursor: "pointer", fontSize: 14 }} aria-label="Dismiss">
+            <div className="flex flex-col justify-between items-end">
+              <button onClick={() => dismissToast(t.id)} className="border-0 bg-transparent cursor-pointer text-sm" aria-label="Dismiss">
                 ✕
               </button>
             </div>

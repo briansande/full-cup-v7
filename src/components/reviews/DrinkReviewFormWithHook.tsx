@@ -5,43 +5,63 @@ import TextInput from '../ui/TextInput';
 import TextArea from '../ui/TextArea';
 import StatusMessage from '../ui/StatusMessage';
 import { ButtonGroup } from '../ui';
+import { useFormState } from '@/src/hooks';
 
-interface DrinkReviewFormProps {
-  drinkName: string;
-  setDrinkName: (value: string) => void;
- drinkType: string;
-  setDrinkType: (value: string) => void;
-  rating: string;
-  setRating: (value: string) => void;
-  text: string;
-  setText: (value: string) => void;
+interface DrinkReviewFormWithHookProps {
   saving: boolean;
-  handleSubmit: (e?: React.FormEvent) => void;
+  handleSubmit: (data: DrinkReviewFormData) => void;
   userId: string | null;
   error: string | null;
 }
 
-export default function DrinkReviewForm({
-  drinkName,
-  setDrinkName,
-  drinkType,
-  setDrinkType,
-  rating,
-  setRating,
-  text,
-  setText,
+interface DrinkReviewFormData {
+  drinkName: string;
+  drinkType: string;
+  rating: string;
+  text: string;
+}
+
+export default function DrinkReviewFormWithHook({
   saving,
   handleSubmit,
   userId,
   error
-}: DrinkReviewFormProps) {
-  // Render the drink review form
- return (
-    <form onSubmit={(e) => handleSubmit(e)} className="mb-4">
+}: DrinkReviewFormWithHookProps) {
+  const {
+    formData,
+    handleChange,
+    resetForm,
+    startSubmitting,
+    stopSubmitting
+  } = useFormState<DrinkReviewFormData>({
+    drinkName: '',
+    drinkType: '',
+    rating: 'good',
+    text: ''
+  });
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    startSubmitting();
+    try {
+      await handleSubmit(formData);
+      // Reset form on successful submission
+      resetForm();
+    } finally {
+      stopSubmitting();
+    }
+  };
+
+  const onReset = () => {
+    resetForm();
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="mb-4">
       <FormField label="Drink name" required={true}>
         <TextInput
-          value={drinkName}
-          onChange={setDrinkName}
+          value={formData.drinkName}
+          onChange={(value) => handleChange('drinkName', value)}
           placeholder="e.g., Caffe Latte"
         />
       </FormField>
@@ -53,8 +73,8 @@ export default function DrinkReviewForm({
             { value: "good", label: "Good" },
             { value: "awesome", label: "Awesome" },
           ]}
-          value={rating}
-          onChange={setRating}
+          value={formData.rating}
+          onChange={(value) => handleChange('rating', value)}
           variant="rating"
           aria-label="Drink rating"
         />
@@ -62,8 +82,8 @@ export default function DrinkReviewForm({
 
       <FormField label="Review (optional)">
         <TextArea
-          value={text}
-          onChange={setText}
+          value={formData.text}
+          onChange={(value) => handleChange('text', value)}
           placeholder="Share a short thought about the drink..."
           rows={3}
         />
@@ -71,8 +91,8 @@ export default function DrinkReviewForm({
 
       <FormField label="Drink type (optional)">
         <TextInput
-          value={drinkType}
-          onChange={setDrinkType}
+          value={formData.drinkType}
+          onChange={(value) => handleChange('drinkType', value)}
           placeholder="e.g., espresso, pour over, cold brew"
         />
       </FormField>
@@ -88,12 +108,7 @@ export default function DrinkReviewForm({
 
         <button
           type="button"
-          onClick={() => {
-            setDrinkName("");
-            setDrinkType("");
-            setRating("good");
-            setText("");
-          }}
+          onClick={onReset}
           disabled={saving}
           className={`btn-form-secondary ${saving ? "is-disabled" : ""}`}
         >
