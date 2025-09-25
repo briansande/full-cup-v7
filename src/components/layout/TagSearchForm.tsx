@@ -25,54 +25,40 @@ export default function TagSearchForm({
 }: TagSearchFormProps) {
   // Render the tag search form
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="mb-3">
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search or suggest a tag (e.g. 'Pet friendly')"
-        style={{ padding: 8, borderRadius: 6, border: '1px solid #d1d5db', width: '100%' }}
+        className="p-2 rounded-md border border-gray-300 w-full"
       />
-      {searching ? <div style={{ fontSize: 13, color: '#666' }}>Searching…</div> : null}
+      {searching ? <div className="text-sm text-gray-600">Searching…</div> : null}
       {searchResults.length > 0 ? (
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="mt-2 flex flex-col gap-1.5">
           {searchResults.map((r) => (
             <button
               key={r.id}
               type="button"
               onClick={() => handleAddExistingTag(r.id)}
               disabled={submitting}
-              style={{
-                textAlign: 'left',
-                padding: '6px 8px',
-                borderRadius: 6,
-                border: '1px solid #e5e7eb',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
+              className="text-left p-1.5 rounded-md border border-gray-200 bg-white cursor-pointer"
             >
               {r.name}
             </button>
           ))}
         </div>
       ) : null}
-      <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+      <div className="mt-2 flex gap-2">
         <button
           type="button"
           onClick={() => handleSuggestTag(search)}
           disabled={submitting}
-          style={{
-            padding: '8px 12px',
-            borderRadius: 6,
-            border: '1px solid #111827',
-            background: '#111827',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
+          className="px-3 py-2 rounded-md border border-gray-900 bg-gray-900 text-white cursor-pointer"
         >
           {submitting ? 'Submitting…' : 'Suggest new tag'}
         </button>
       </div>
-      {error ? <div style={{ marginTop: 8, color: 'red' }}>{error}</div> : null}
+      {error ? <div className="mt-2 text-red-600">{error}</div> : null}
     </div>
   );
 }

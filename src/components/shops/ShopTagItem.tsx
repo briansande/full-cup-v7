@@ -10,22 +10,16 @@ type Props = {
 
 function ShopTagItem({ tag, userId, onVote, submitting }: Props) {
   return (
-    <div style={{ padding: '6px 8px', borderRadius: 999, background: '#f3f4f6', display: 'flex', gap: 8, alignItems: 'center' }}>
-      <div style={{ fontWeight: 700 }}>{tag.tag_name}</div>
-      <div style={{ fontSize: 13, color: '#444' }}>{tag.total_votes > 0 ? `+${tag.total_votes}` : ''}</div>
+    <div className="px-1.5 py-1.5 rounded-full bg-gray-100 flex gap-2 items-center">
+      <div className="font-bold">{tag.tag_name}</div>
+      <div className="text-sm text-gray-700">{tag.total_votes > 0 ? `+${tag.total_votes}` : ''}</div>
       {onVote && (
         <button
           type="button"
           onClick={() => onVote(tag)}
           disabled={submitting}
           title="Thumbs up"
-          style={{
-            padding: '6px 8px',
-            borderRadius: 6,
-            border: '1px solid #d1d5db',
-            background: '#fff',
-            cursor: 'pointer',
-          }}
+          className="px-1.5 py-1.5 rounded-md border border-gray-300 bg-white cursor-pointer"
         >
           👍
         </button>

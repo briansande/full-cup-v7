@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Auth from "@/src/components/Auth";
+import Auth from "@/src/components/layout/Auth";
 import { supabase } from "@/src/lib/supabase";
-import AdminSyncControls from "@/src/components/AdminSyncControls";
+import AdminSyncControls from "@/src/components/layout/AdminSyncControls";
 
 /**
  * Basic Admin dashboard

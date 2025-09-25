@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import useShops from '@/src/hooks/useShops';
-import FilterControls from '@/src/components/FilterControls';
+import FilterControls from '@/src/components/filters/FilterControls';
 import useFilters from '@/src/hooks/useFilters';
 import { supabase } from '@/src/lib/supabase';
 

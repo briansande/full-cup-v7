@@ -145,14 +145,14 @@ export default function ShopStatus({ shopId }: Props) {
   if (loading) return <div>Loading status...</div>;
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ marginBottom: 8, fontWeight: 600 }}>Your relationship</div>
+    <div className="mt-3">
+      <div className="mb-2 font-semibold">Your relationship</div>
       {!user ? (
-        <div style={{ color: "#666" }}>
+        <div className="text-gray-600">
           Sign in to mark this shop. The login form is in the header.
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="flex gap-2 items-center flex-wrap">
           {Object.keys(STATUS_LABELS).map((key) => {
             const selected = status === key;
             const bg = selected ? (key === "favorite" ? "#ef4444" : key === "visited" ? "#10b981" : "#3b82f6") : "#fff";
@@ -162,24 +162,24 @@ export default function ShopStatus({ shopId }: Props) {
                 key={key}
                 onClick={() => handleSetStatus(key)}
                 disabled={saving}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  background: bg,
-                  color,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
+                className={`px-2 py-2 rounded-md border border-gray-300 cursor-pointer font-semibold ${
+                  selected 
+                    ? key === "favorite" 
+                      ? 'bg-red-500 text-white border-red-500' 
+                      : key === "visited" 
+                        ? 'bg-green-600 text-white border-green-600' 
+                        : 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-900'
+                }`}
               >
                 {STATUS_LABELS[key]}
               </button>
             );
           })}
-          {saving ? <div style={{ marginLeft: 8 }}>Saving…</div> : null}
+          {saving ? <div className="ml-2">Saving…</div> : null}
         </div>
       )}
-      {error ? <div style={{ marginTop: 8, color: "red" }}>{error}</div> : null}
+      {error ? <div className="mt-2 text-red-600">{error}</div> : null}
     </div>
   );
 }

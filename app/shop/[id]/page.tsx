@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { supabase } from '@/src/lib/supabase';
-import ShopStatus from '@/src/components/ShopStatus';
-import ShopReviews from '@/src/components/ShopReviews';
-import DrinkReviews from '@/src/components/DrinkReviews';
-import ShopTags from '@/src/components/ShopTags';
+import ShopStatus from '@/src/components/shops/ShopStatus';
+import ShopReviews from '@/src/components/reviews/ShopReviews';
+import DrinkReviews from '@/src/components/reviews/DrinkReviews';
+import ShopTags from '@/src/components/shops/ShopTags';
 
 type Props = { params: { id: string } };
 

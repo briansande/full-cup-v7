@@ -3,17 +3,17 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import Link from 'next/link';
 import useShops from "@/src/hooks/useShops";
 import useFilters from "@/src/hooks/useFilters";
-import FilterControls from "@/src/components/FilterControls";
+import FilterControls from "@/src/components/filters/FilterControls";
 import { generateGrid, GridPoint } from "@/src/lib/grid";
-import GridDebugOverlay, { DebugToggle } from "@/src/components/GridDebugOverlay";
+import GridDebugOverlay, { DebugToggle } from "@/src/components/layout/GridDebugOverlay";
 import { Shop } from "@/src/types";
-import ShopSidebar from "@/src/components/ShopSidebar";
-import MapFilterControls from "@/src/components/MapFilterControls";
-import FilterCountMessage from "@/src/components/FilterCountMessage";
-import MapLoadingIndicator from "@/src/components/MapLoadingIndicator";
-import MapEvents from "@/src/components/MapEvents";
-import ShopMarker from "@/src/components/ShopMarker";
-import UserLocationMarker from "@/src/components/UserLocationMarker";
+import ShopSidebar from "@/src/components/shops/ShopSidebar";
+import MapFilterControls from "./MapFilterControls";
+import FilterCountMessage from "@/src/components/filters/FilterCountMessage";
+import MapLoadingIndicator from "./MapLoadingIndicator";
+import MapEvents from "./MapEvents";
+import ShopMarker from "@/src/components/shops/ShopMarker";
+import UserLocationMarker from "./UserLocationMarker";
 import { distanceMiles } from "@/src/lib/distance";
 import type { Map as LeafletMap, LatLngBounds, Marker as LeafletMarker } from 'leaflet';
 import type { MapContainerProps, TileLayerProps, MarkerProps, PopupProps } from 'react-leaflet';
@@ -260,7 +260,7 @@ export default function Map() {
 
   if (!RL) {
     return (
-      <div style={{ height: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="h-screen w-full flex items-center justify-center">
         <div>Loading map...</div>
       </div>
     );

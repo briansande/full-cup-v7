@@ -150,11 +150,11 @@ export default function ShopReviews({ shopId }: Props) {
   }
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <h3 style={{ margin: "8px 0" }}>Reviews</h3>
+    <div className="mt-4.5">
+      <h3 className="m-2">Reviews</h3>
 
       {!userId ? (
-        <div style={{ color: "#666", marginBottom: 12 }}>
+        <div className="text-gray-600 mb-3">
           Sign in to leave a review. The login form is in the header.
         </div>
       ) : null}
@@ -184,9 +184,9 @@ export default function ShopReviews({ shopId }: Props) {
         {loading ? (
           <div>Loading reviews…</div>
         ) : reviews.length === 0 ? (
-          <div style={{ color: "#666" }}>No reviews yet. Be the first to leave one.</div>
+          <div className="text-gray-600">No reviews yet. Be the first to leave one.</div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3">
             {reviews.map((r) => (
               <ShopReviewItem
                 key={r.id}

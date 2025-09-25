@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { TagSummary, SuggestResult } from '@/src/types';
 import ShopTagItem from './ShopTagItem';
-import TagSearchForm from './TagSearchForm';
+import TagSearchForm from '../layout/TagSearchForm';
 
 type Props = {
   shopId: string;
@@ -310,11 +310,11 @@ export default function ShopTags({ shopId }: Props) {
   }
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <h3 style={{ margin: '8px 0' }}>Tags</h3>
+    <div className="mt-4.5">
+      <h3 className="m-2">Tags</h3>
 
       {!userId ? (
-        <div style={{ color: '#666', marginBottom: 12 }}>Sign in to add tags or vote. Login is in the header.</div>
+        <div className="text-gray-600 mb-3">Sign in to add tags or vote. Login is in the header.</div>
       ) : null}
 
       <TagSearchForm
@@ -332,9 +332,9 @@ export default function ShopTags({ shopId }: Props) {
         {loading ? (
           <div>Loading tags…</div>
         ) : !tags || tags.length === 0 ? (
-          <div style={{ color: '#666' }}>No tags yet. Be the first to suggest one.</div>
+          <div className="text-gray-600">No tags yet. Be the first to suggest one.</div>
         ) : (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex gap-2 flex-wrap">
             {tags.map((t) => (
               <ShopTagItem
                 key={t.tag_id}

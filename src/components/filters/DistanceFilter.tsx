@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import StatusMessage from '../ui/StatusMessage';
 
 type Location = { lat: number; lng: number } | null;
 
@@ -29,7 +30,7 @@ export default function DistanceFilter({
   // Render the distance filter component
   return (
     <div className="flex gap-2 items-center flex-wrap ml-1">
-      <div className={`text-sm ${distanceActive ? 'text-[--cottage-primary] font-medium' : 'text-[--cottage-neutral-dark]/70'}`}>Near Me</div>
+      <div className={`text-sm ${distanceActive ? 'text-primary font-medium' : 'text-muted'}`}>Near Me</div>
 
       <select
         aria-label="Distance filter"
@@ -46,8 +47,8 @@ export default function DistanceFilter({
           }
         }}
         className={`cottage-input ${
-          distanceActive 
-            ? 'border-2 border-[--cottage-primary] bg-[--cottage-accent]/30 shadow-md' 
+          distanceActive
+            ? 'border-primary shadow-md bg-secondary/30'
             : ''
         }`}
       >
@@ -61,34 +62,32 @@ export default function DistanceFilter({
 
       {/* Permission / status message */}
       {distanceActive && locationPermission === "denied" ? (
-        <div className="text-red-600 text-sm ml-1 flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 018 0z" />
-          </svg>
-          Location denied. 
-          <button 
-            onClick={() => requestLocation()} 
-            className="underline bg-none border-none text-[--cottage-neutral-dark] cursor-pointer hover:text-[--cottage-primary]"
-          >
-            Retry
-          </button>
-        </div>
+        <StatusMessage
+          type="error"
+          message="Location denied."
+          actions={[{
+            label: "Retry",
+            onClick: requestLocation,
+            variant: "outline"
+          }]}
+          className="ml-1"
+        />
       ) : null}
 
       {distanceActive && locationPermission === "prompt" ? (
-        <div className="text-[--cottage-neutral-dark]/70 text-sm ml-1 flex items-center gap-1">
-          <div className="w-3 h-3 border-2 border-[--cottage-primary] border-t-transparent rounded-full animate-spin"></div>
-          Requesting location...
-        </div>
+        <StatusMessage
+          type="loading"
+          message="Requesting location..."
+          className="ml-1"
+        />
       ) : null}
 
       {distanceActive && locationError ? (
-        <div className="text-red-600 text-sm ml-1 flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {locationError}
-        </div>
+        <StatusMessage
+          type="error"
+          message={locationError}
+          className="ml-1"
+        />
       ) : null}
     </div>
   );

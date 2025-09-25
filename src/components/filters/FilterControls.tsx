@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import TagSelector from './TagSelector';
+import TagSelector from '../layout/TagSelector';
 import SearchFilter from './SearchFilter';
 import StatusFilter from './StatusFilter';
 import DateFilter from './DateFilter';

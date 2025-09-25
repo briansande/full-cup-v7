@@ -1,5 +1,5 @@
 import React from "react";
-import NewShops from "@/src/components/NewShops";
+import NewShops from "@/src/components/shops/NewShops";
 
 export default function Page() {
   return (

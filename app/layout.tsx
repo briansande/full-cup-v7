@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import Auth from "../src/components/Auth";
-import AchievementNotifier from "../src/components/AchievementNotifier";
-import AchievementNavBadge from "../src/components/AchievementNavBadge";
+import Auth from "../src/components/layout/Auth";
+import AchievementNotifier from "../src/components/layout/AchievementNotifier";
+import AchievementNavBadge from "../src/components/layout/AchievementNavBadge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

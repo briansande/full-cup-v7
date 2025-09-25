@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 const STORAGE_PREFIX = "fullcup.seen_achievements";
 

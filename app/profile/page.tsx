@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../src/lib/supabase";
-import CoffeePassport from "../../src/components/CoffeePassport";
+import CoffeePassport from "../../src/components/layout/CoffeePassport";
 
 type Stats = {
   visited: number;

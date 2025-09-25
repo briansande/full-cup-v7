@@ -69,30 +69,28 @@ export default function NewShops() {
   }, [shops, selectedTags]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 900 }}>
-      <h1 style={{ margin: '0 0 12px 0' }}>Recently added coffee shops</h1>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="m-0 mb-3">Recently added coffee shops</h1>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div className="flex gap-2 mb-4">
         {DATE_FILTER_OPTIONS.map((opt) => (
           <button
             key={opt.days}
             onClick={() => setDateDays(opt.days)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              border: dateDays === opt.days ? '2px solid #111' : '1px solid #ddd',
-              background: dateDays === opt.days ? '#f0f0f0' : '#fff',
-              cursor: 'pointer',
-            }}
+            className={`px-2 py-2 rounded-md cursor-pointer ${
+              dateDays === opt.days 
+                ? 'border-2 border-gray-900 bg-gray-100' 
+                : 'border border-gray-300 bg-white'
+            }`}
             aria-pressed={dateDays === opt.days}
           >
             {opt.label}
           </button>
         ))}
       </div>
-      {filterError ? <div style={{ color: 'red', marginBottom: 8 }}>Filter error: {filterError}</div> : null}
+      {filterError ? <div className="text-red-600 mb-2">Filter error: {filterError}</div> : null}
 
-      <div style={{ marginBottom: 12, color: '#666' }}>
+      <div className="mb-3 text-gray-600">
         Showing shops added in the last {dateDays} days — sorted newest first.
         {selectedTags && selectedTags.length > 0 ? ` — filtered by ${selectedTags.length} tag${selectedTags.length>1 ? 's':''}` : ''}
       </div>
@@ -100,12 +98,12 @@ export default function NewShops() {
       {loading ? (
         <div>Loading...</div>
       ) : error ? (
-        <div style={{ color: 'red' }}>Error: {error}</div>
+        <div className="text-red-600">Error: {error}</div>
       ) : shops && shops.length > 0 ? (
         filteredShops.length === 0 ? (
           <div>No new shops found for the selected time range and tag filters.</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+          <div className="grid grid-cols-1 gap-3">
             {filteredShops.map((s) => (
               <ShopCard key={s.id} shop={s} />
             ))}
