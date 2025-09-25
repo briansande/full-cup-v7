@@ -29,14 +29,7 @@ export async function searchNearbyPlaces(
     "places.formattedAddress",
     "places.types",
     "places.location",
-    "places.rating",
-    "places.websiteUri",
-    "places.nationalPhoneNumber",
-    "places.regularOpeningHours",
-    "places.priceLevel",
-    "places.userRatingCount",
     "places.businessStatus",
-    "places.photos",
   ].join(",");
 
   const res = await fetch(url, {
@@ -84,8 +77,8 @@ export async function getPlaceDetails(placeIdOrResource: string): Promise<Google
   const resourceName = placeIdOrResource.startsWith("places/") ? placeIdOrResource : `places/${placeIdOrResource}`;
 
   const url = `https://places.googleapis.com/v1/${resourceName}`;
-  // Request only the photos field (minimal payload)
-  const fields = ["places.photos", "places.displayName", "places.name"].join(",");
+  // Request only basic fields (Essentials tier)
+  const fields = ["places.displayName", "places.name"].join(",");
 
   const res = await fetch(url, {
     method: "GET",

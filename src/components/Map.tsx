@@ -75,8 +75,8 @@ export default function Map() {
   }, []);
   
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-  const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(true);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const [isLeftSidebarVisible, setIsLeftSidebarVisible] = useState(false);
   
   // Toggle right sidebar (shop cards)
   const toggleSidebar = () => {

@@ -172,20 +172,8 @@ export async function nearbySearchWithPagination(params: NearbySearchParams): Pr
     "places.primaryType",
     "places.primaryTypeDisplayName",
     
-    // Business status and quality indicators
-    "places.businessStatus",
-    "places.rating",
-    "places.userRatingCount",
-    "places.priceLevel",
-    
-    // Operating hours (for coffee shop validation)
-    "places.currentOpeningHours",
-    "places.regularOpeningHours",
-    
-    // Contact information
-    "places.websiteUri",
-    "places.nationalPhoneNumber",
-    "places.internationalPhoneNumber"
+    // Business status (Pro tier)
+    "places.businessStatus"
   ].join(",");
 
   const aggregatedById = new Map<string, NearbyPlace>();
