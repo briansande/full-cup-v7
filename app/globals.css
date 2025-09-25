@@ -41,7 +41,7 @@ body {
   backdrop-filter: blur(4px);
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
+ box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
   border: 1px solid rgba(139, 69, 19, 0.1);
   transition: all 0.2s ease;
 }
@@ -56,7 +56,7 @@ body {
   padding: 0.5rem 1rem;
   font-weight: 500;
   transition: all 0.15s ease;
-  border: 1px solid var(--cottage-neutral-dark);
+ border: 1px solid var(--cottage-neutral-dark);
   background: var(--cottage-secondary);
   color: var(--cottage-neutral-dark);
   cursor: pointer;
@@ -74,7 +74,7 @@ body {
 .cottage-button-primary {
   background: var(--cottage-primary);
   color: white;
-  border-color: var(--cottage-primary);
+ border-color: var(--cottage-primary);
 }
 
 .cottage-button-secondary {
@@ -108,15 +108,36 @@ body {
 .cottage-map-container {
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(139, 69, 19, 0.15);
+ box-shadow: 0 8px 24px rgba(139, 69, 19, 0.15);
   border: 1px solid rgba(139, 69, 19, 0.1);
+}
+
+/* Active state utility classes for consistent styling */
+.cottage-active-state {
+  background: var(--cottage-accent);
+  color: white;
+ border-color: var(--cottage-accent);
+  box-shadow: 0 2px 8px rgba(143, 188, 143, 0.3);
+}
+
+.cottage-active-state-text {
+  color: var(--cottage-primary);
+  font-weight: 600;
+}
+
+.cottage-active-state-border {
+  border-left: 4px solid var(--cottage-accent);
+}
+
+.cottage-active-state-shadow {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Leaflet marker fallback: hide broken image placeholder and show a simple dot marker */
 .leaflet-container .leaflet-marker-icon {
-  /* Ensure background fallback is available */
+ /* Ensure background fallback is available */
   background-color: transparent;
-  position: relative;
+ position: relative;
 }
 
 /* When the default icon images fail to load, hide the broken image rendering */

@@ -18,7 +18,7 @@ export default function DateFilter({ dateDays, setDateDays, DATE_FILTER_OPTIONS 
           onClick={() => setDateDays(opt.days)}
           className={`cottage-button px-3 py-2 ${
             dateDays === opt.days 
-              ? 'bg-[--cottage-neutral-dark] text-white border-[--cottage-neutral-dark]' 
+              ? 'bg-[--cottage-accent] text-white border-[--cottage-accent] shadow-md' 
               : 'hover:bg-[--cottage-secondary]/50'
           }`}
           aria-pressed={dateDays === opt.days}
@@ -28,7 +28,11 @@ export default function DateFilter({ dateDays, setDateDays, DATE_FILTER_OPTIONS 
       ))}
       <button
         onClick={() => setDateDays(null)}
-        className="cottage-button px-2 py-1.5 text-[--cottage-neutral-dark]/70 hover:bg-[--cottage-secondary]/50"
+        className={`cottage-button px-2 py-1.5 ${
+          dateDays === null 
+            ? 'bg-[--cottage-primary] text-white border-[--cottage-primary] shadow-md' 
+            : 'text-[--cottage-neutral-dark]/70 hover:bg-[--cottage-secondary]/50'
+        }`}
         title="Clear date filter"
       >
         Clear

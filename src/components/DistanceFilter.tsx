@@ -23,13 +23,13 @@ export default function DistanceFilter({
   setDistanceRadiusMiles,
   userLocation,
   locationPermission,
-  locationError,
+ locationError,
   requestLocation
 }: DistanceFilterProps) {
   // Render the distance filter component
   return (
     <div className="flex gap-2 items-center flex-wrap ml-1">
-      <div className="text-[--cottage-neutral-dark]/70 text-sm">Near Me</div>
+      <div className={`text-sm ${distanceActive ? 'text-[--cottage-primary] font-medium' : 'text-[--cottage-neutral-dark]/70'}`}>Near Me</div>
 
       <select
         aria-label="Distance filter"
@@ -47,7 +47,7 @@ export default function DistanceFilter({
         }}
         className={`cottage-input ${
           distanceActive 
-            ? 'border-2 border-[--cottage-neutral-dark]' 
+            ? 'border-2 border-[--cottage-primary] bg-[--cottage-accent]/30 shadow-md' 
             : ''
         }`}
       >
@@ -63,7 +63,7 @@ export default function DistanceFilter({
       {distanceActive && locationPermission === "denied" ? (
         <div className="text-red-600 text-sm ml-1 flex items-center gap-1">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 018 0z" />
           </svg>
           Location denied. 
           <button 

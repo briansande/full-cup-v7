@@ -118,12 +118,12 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
         {/* Selected tags as pills */}
         <div className="flex gap-2 flex-wrap items-center flex-1">
           {(selectedTags || []).map((tid) => (
-            <div key={tid} className="cottage-tag inline-flex gap-2 items-center">
+            <div key={tid} className="cottage-tag inline-flex gap-2 items-center bg-[--cottage-accent] text-white px-3 py-1 rounded-full shadow-md">
               <div className="font-medium">{selectedTagDetails[tid] ?? tid}</div>
               <button
                 aria-label={`Remove tag ${selectedTagDetails[tid] ?? tid}`}
                 onClick={() => removeTag(tid)}
-                className="bg-none border-none cursor-pointer text-[--cottage-neutral-dark] hover:text-red-500"
+                className="bg-none border-none cursor-pointer text-white hover:text-[--cottage-secondary] font-bold"
                 type="button"
               >
                 ×
@@ -169,9 +169,9 @@ export default function TagSelector({ selectedTags, setSelectedTags, placeholder
                   disabled={already}
                   className={`text-left px-2 py-1.5 rounded-lg border ${
                     already 
-                      ? 'bg-[--cottage-secondary] border-[--cottage-accent]' 
-                      : 'bg-white border-[--cottage-neutral-light]'
-                  } ${already ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-[--cottage-secondary]/50'}`}
+                      ? 'bg-[--cottage-accent] text-white border-[--cottage-accent] shadow-md' 
+                      : 'bg-white border-[--cottage-neutral-light] hover:bg-[--cottage-secondary]/50'
+                  } ${already ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   {r.name} {already ? '✓' : ''}
                 </button>

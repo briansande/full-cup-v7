@@ -101,7 +101,9 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
                   className={`p-4 cursor-pointer transition-all duration-200 ${
                     expandedShopId === shop.id ? 'bg-[--cottage-secondary]' : 'hover:bg-[--cottage-secondary]/50'
                   } ${
-                    selectedShopId === shop.id ? 'bg-[--cottage-accent]/10 border-l-4 border-[--cottage-accent]' : ''
+                    selectedShopId === shop.id 
+                      ? 'bg-[--cottage-accent]/40 border-l-4 border-[--cottage-accent] shadow-md' 
+                      : ''
                   }`}
                   onClick={() => {
                     toggleExpand(shop.id);
@@ -110,7 +112,11 @@ export default function ShopSidebar({ shops, onShopSelect, isVisible, onToggle, 
                 >
                   {/* Shop name and rating */}
                   <div className="flex justify-between items-start">
-                    <h3 className={`font-medium ${selectedShopId === shop.id ? 'text-[--cottage-primary]' : 'text-[--cottage-neutral-dark]'}`}>{shop.name || 'Unnamed shop'}</h3>
+                    <h3 className={`font-medium ${
+                      selectedShopId === shop.id 
+                        ? 'text-white font-semibold' 
+                        : 'text-[--cottage-neutral-dark]'
+                    }`}>{shop.name || 'Unnamed shop'}</h3>
                     {shop.avgRating != null && (
                       <div className="flex items-center">
                         <span className="text-yellow-500 mr-1">★</span>
