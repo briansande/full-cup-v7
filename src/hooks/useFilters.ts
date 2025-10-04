@@ -17,6 +17,8 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   want_to_try: "Want to Try",
   visited: "Visited",
   favorite: "Favorites",
+  not_interested: "Not Interested",
+  potential: "Potential",
 };
 
 type UseFiltersOptions = {
@@ -57,6 +59,9 @@ export default function useFilters(opts?: UseFiltersOptions) {
   const [searchText, setSearchText] = useState<string>(initialSearchText);
   const [statusFilter, setStatusFilterRaw] = useState<string | null>(initialStatus);
   const [dateDays, setDateDaysRaw] = useState<number | null>(initialDateDays);
+
+  // Show not interested state - defaults to false to hide not interested shops by default
+  const [showNotInterested, setShowNotInterested] = useState<boolean>(false);
 
   // Tag filter (array of tag ids). AND logic - shops must contain all selected tags.
   const [selectedTags, setSelectedTagsRaw] = useState<string[]>(initialSelectedTags);
@@ -177,6 +182,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     setLocationError(null);
     setLocationPermission("unknown");
     setFilterError(null);
+    setShowNotInterested(false); // reset show not interested state when clearing filters
   }
 
   // Validate the current filter state and return any error messages
@@ -235,6 +241,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     locationError,
     filterError,
     selectedTags,
+    showNotInterested,
 
     // constants / options
     DATE_FILTER_OPTIONS,
@@ -250,6 +257,7 @@ export default function useFilters(opts?: UseFiltersOptions) {
     requestLocation,
     clearFilters,
     setSelectedTags,
+    setShowNotInterested,
 
     // helpers
     validateFilters,

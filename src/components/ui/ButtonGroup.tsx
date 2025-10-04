@@ -13,7 +13,7 @@ export interface ButtonGroupProps {
   options: ButtonOption[];
   value: string | number | null;
   onChange: (value: any) => void;
-  variant?: 'rating' | 'filter' | 'status' | 'date' | 'primary' | 'default';
+  variant?: 'rating' | 'filter' | 'status' | 'date' | 'primary' | 'default' | 'vertical';
   multiSelect?: boolean;
   required?: boolean;
   description?: string;
@@ -112,7 +112,7 @@ export default function ButtonGroup({
           </div>
         )}
       </div>
-      <div className="flex gap-1.5 items-center mb-2">
+      <div className={`mb-2 ${variant === 'vertical' ? 'flex flex-col gap-1.5' : 'flex gap-1.5 items-center'}`}>
         {options.map((option) => {
           const selected = option.value === value;
           const buttonClasses = getButtonStyles(option, selected);

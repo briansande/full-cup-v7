@@ -11,6 +11,8 @@ const STATUS_LABELS: Record<string, string> = {
   want_to_try: "Want to Try",
   visited: "Visited",
   favorite: "Favorite",
+  potential: "Potential",
+  not_interested: "Not Interested",
 };
 
 export default function ShopStatus({ shopId }: Props) {
@@ -155,21 +157,23 @@ export default function ShopStatus({ shopId }: Props) {
         <div className="flex gap-2 items-center flex-wrap">
           {Object.keys(STATUS_LABELS).map((key) => {
             const selected = status === key;
-            const bg = selected ? (key === "favorite" ? "#ef4444" : key === "visited" ? "#10b981" : "#3b82f6") : "#fff";
-            const color = selected ? "#fff" : "#111827";
             return (
               <button
                 key={key}
                 onClick={() => handleSetStatus(key)}
                 disabled={saving}
-                className={`px-2 py-2 rounded-md border border-gray-300 cursor-pointer font-semibold ${
+                className={`px-2 py-2 rounded-md border cursor-pointer font-semibold ${
                   selected 
                     ? key === "favorite" 
                       ? 'bg-red-500 text-white border-red-500' 
                       : key === "visited" 
                         ? 'bg-green-600 text-white border-green-600' 
-                        : 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-900'
+                        : key === "potential"
+                          ? 'bg-green-700 text-white border-green-700'
+                          : key === "not_interested"
+                            ? 'bg-gray-500 text-white border-gray-500'
+                            : 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-900 border-gray-300'
                 }`}
               >
                 {STATUS_LABELS[key]}

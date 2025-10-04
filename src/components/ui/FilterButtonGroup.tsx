@@ -13,7 +13,7 @@ export interface FilterButtonGroupProps {
   options: FilterOption[];
   value: string | number | null;
   onChange: (value: string | number | null) => void;
-  variant?: 'default' | 'status' | 'date' | 'primary';
+  variant?: 'default' | 'status' | 'date' | 'primary' | 'vertical';
   multiSelect?: boolean;
   showClearButton?: boolean;
   clearButtonLabel?: string;
@@ -48,7 +48,7 @@ export default function FilterButtonGroup({
   };
 
   return (
-    <div className={`flex gap-2 items-center flex-wrap ${className}`}>
+    <div className={`${variant === 'vertical' ? 'flex flex-col gap-2' : `flex gap-2 items-center flex-wrap`} ${className}`}>
       <ButtonGroup
         options={buttonOptions}
         value={value}

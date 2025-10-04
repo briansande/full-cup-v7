@@ -98,7 +98,7 @@ export default function Map() {
   const USER_HIDE_THRESHOLD_MILES = 0.2;
 
   // Location and distance filter logic moved to shared useFilters hook.
-  // Shared filter hook state & actions
+ // Shared filter hook state & actions
   const {
     searchText,
     setSearchText,
@@ -118,13 +118,15 @@ export default function Map() {
     requestLocation,
     clearFilters,
     STATUS_LABEL_MAP,
+    showNotInterested,
+    setShowNotInterested,
     // tag filter state
     selectedTags,
     setSelectedTags,
   } = filters;
 
  // Grid debug overlay state (lazy loaded)
-  const [debugVisible, setDebugVisible] = useState<boolean>(false);
+ const [debugVisible, setDebugVisible] = useState<boolean>(false);
   const [debugPoints, setDebugPoints] = useState<GridPoint[] | null>(null);
 
   // Admin guard for showing debug controls. If no explicit admin check exists,
@@ -155,6 +157,11 @@ export default function Map() {
         if ((s.status ?? "default") !== statusFilter) return false;
       }
 
+      // If status filter is NOT active, hide "not_interested" shops by default unless showNotInterested is true
+      if (!statusFilter && (s.status ?? "default") === "not_interested" && !showNotInterested) {
+        return false;
+      }
+
       // If distance filter is enabled and we have a user location, compute distance and filter accordingly.
       if (distanceActive) {
         if (!userLocation) {
@@ -173,7 +180,7 @@ export default function Map() {
       if (!normalizedSearch) return true;
       return (s.name ?? "").toLowerCase().includes(normalizedSearch);
     });
-  }, [shops, selectedTags, statusFilter, distanceActive, userLocation, distanceRadiusMiles, normalizedSearch]);
+  }, [shops, selectedTags, statusFilter, showNotInterested, distanceActive, userLocation, distanceRadiusMiles, normalizedSearch]);
 
   // Filter shops based on map bounds (what's visible)
   const visibleShops = useMemo(() => {
@@ -291,7 +298,7 @@ export default function Map() {
   const shadowUrl = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
 
   // Handle shop selection from sidebar
-  const handleShopSelect = (shop: Shop) => {
+ const handleShopSelect = (shop: Shop) => {
     setSelectedShopId(shop.id);
     
     // Open popup for selected shop
@@ -343,6 +350,9 @@ export default function Map() {
             // Tag filter props
             selectedTags={selectedTags}
             setSelectedTags={setSelectedTags}
+            // Show not interested props
+            showNotInterested={showNotInterested}
+            setShowNotInterested={setShowNotInterested}
             renderDebugButton={showDebugToggle ? (
               <button
                 onClick={async () => {

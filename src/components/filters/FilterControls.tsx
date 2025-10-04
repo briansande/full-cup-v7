@@ -34,6 +34,10 @@ type Props = {
   // Tag filter integration
   selectedTags: string[];
   setSelectedTags: (v: string[] | null) => void;
+  
+  // Show not interested functionality
+  showNotInterested: boolean;
+  setShowNotInterested: (v: boolean) => void;
 };
 
 export default function FilterControls(props: Props) {
@@ -58,44 +62,69 @@ export default function FilterControls(props: Props) {
     renderDebugButton,
     selectedTags,
     setSelectedTags,
+    showNotInterested,
+    setShowNotInterested,
   } = props;
 
   // Destructure props for easier access
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-md flex gap-2 items-center flex-wrap max-w-[90vw] w-full">
-      <SearchFilter searchText={searchText} setSearchText={setSearchText} />
+    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md max-w-[90vw] w-full">
+      {/* Top row - Search and Tags */}
+      <div className="flex gap-2 items-center flex-wrap mb-4">
+        <SearchFilter searchText={searchText} setSearchText={setSearchText} />
 
-      {/* Tag selector — searchable, multi-select. Uses AND logic (shop must have all selected tags) */}
-      <div className="ml-1">
-        <TagSelector selectedTags={selectedTags} setSelectedTags={setSelectedTags} placeholder="Filter by tags…" />
+        {/* Tag selector — searchable, multi-select. Uses AND logic (shop must have all selected tags) */}
+        <div className="ml-1">
+          <TagSelector selectedTags={selectedTags} setSelectedTags={setSelectedTags} placeholder="Filter by tags…" />
+        </div>
       </div>
 
-      <StatusFilter statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+      {/* Sidebar-style filters */}
+      <div className="flex gap-6">
+        {/* Left column - Status and Date filters */}
+        <div className="flex flex-col gap-4 min-w-[200px]">
+          <StatusFilter statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
 
-      {/* Date filter: Show New Shops */}
-      <DateFilter 
-        dateDays={dateDays} 
-        setDateDays={setDateDays} 
-        DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS} 
-      />
+          {/* Checkbox for showing not interested shops */}
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showNotInterested}
+              onChange={(e) => setShowNotInterested(e.target.checked)}
+              className="rounded"
+            />
+            Show Not Interested
+          </label>
 
-      {/* Near Me / Distance filter (dropdown) */}
-      <DistanceFilter
-        distanceActive={distanceActive}
-        setDistanceFilterEnabled={setDistanceFilterEnabled}
-        DISTANCE_OPTIONS={DISTANCE_OPTIONS}
-        distanceRadiusMiles={distanceRadiusMiles}
-        setDistanceRadiusMiles={setDistanceRadiusMiles}
-        userLocation={userLocation}
-        locationPermission={locationPermission}
-        locationError={locationError}
-        requestLocation={requestLocation}
-      />
+          {/* Date filter: Show New Shops */}
+          <DateFilter 
+            dateDays={dateDays} 
+            setDateDays={setDateDays} 
+            DATE_FILTER_OPTIONS={DATE_FILTER_OPTIONS} 
+          />
+        </div>
 
-      <ClearFiltersButton clearFilters={clearFilters} />
+        {/* Right column - Distance and Clear button */}
+        <div className="flex flex-col gap-2 items-start">
+          {/* Near Me / Distance filter (dropdown) */}
+          <DistanceFilter
+            distanceActive={distanceActive}
+            setDistanceFilterEnabled={setDistanceFilterEnabled}
+            DISTANCE_OPTIONS={DISTANCE_OPTIONS}
+            distanceRadiusMiles={distanceRadiusMiles}
+            setDistanceRadiusMiles={setDistanceRadiusMiles}
+            userLocation={userLocation}
+            locationPermission={locationPermission}
+            locationError={locationError}
+            requestLocation={requestLocation}
+          />
 
-      {renderDebugButton ? <div>{renderDebugButton}</div> : null}
+          <ClearFiltersButton clearFilters={clearFilters} />
+        </div>
+      </div>
+
+      {renderDebugButton ? <div className="mt-2">{renderDebugButton}</div> : null}
     </div>
   );
 }
